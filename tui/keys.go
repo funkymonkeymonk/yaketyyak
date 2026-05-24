@@ -19,6 +19,7 @@ type KeyMap struct {
 	Resume        key.Binding
 	G2G           key.Binding
 	CI            key.Binding
+	History       key.Binding
 	Confirm       key.Binding
 	Cancel        key.Binding
 	NextTab       key.Binding
@@ -45,7 +46,8 @@ func DefaultKeyMap() KeyMap {
 		Resume:        key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "resume")),
 		G2G:           key.NewBinding(key.WithKeys("g"), key.WithHelp("g", "g2g")),
 		CI:            key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "ci")),
-		Confirm:       key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "confirm")),
+		History:       key.NewBinding(key.WithKeys("h"), key.WithHelp("h", "history")),
+		Confirm:       key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "confirm")),
 		Cancel:        key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "cancel")),
 		NextTab:       key.NewBinding(key.WithKeys("tab", "ctrl+right"), key.WithHelp("tab", "next tab")),
 		PrevTab:       key.NewBinding(key.WithKeys("shift+tab", "ctrl+left"), key.WithHelp("shift+tab", "prev tab")),
@@ -63,6 +65,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 		{k.Up, k.Down, k.Home, k.End},
 		{k.Select, k.Edit, k.Start, k.Shave},
 		{k.Pause, k.Resume, k.G2G, k.CI},
+		{k.History},
 		{k.NextTab, k.PrevTab, k.Tab1, k.Tab2},
 		{k.Refresh, k.ToggleHelp, k.Quit},
 	}

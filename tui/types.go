@@ -24,13 +24,14 @@ type YakLine struct {
 }
 
 type Repo struct {
-	Name    string
-	Root    string
-	Remote  string
-	Yaks    []YakLine
-	YaksDir string
-	WFID    string
-	WFState *temporal.WorkflowState
+	Name       string
+	Root       string
+	Remote     string
+	Yaks       []YakLine
+	YaksDir    string
+	WFID       string
+	WFState    *temporal.WorkflowState
+	ShaveState *temporal.ShaveState
 }
 
 type treeLineType int

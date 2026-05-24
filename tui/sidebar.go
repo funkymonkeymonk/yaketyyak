@@ -83,7 +83,7 @@ func (s *sidebarModel) ShowRepo(repo *Repo, width int) {
 	s.viewport.SetContent(strings.Join(lines, "\n"))
 }
 
-func (s *sidebarModel) ShowYak(yak *YakLine, wf *temporal.WorkflowState, width int) {
+func (s *sidebarModel) ShowYak(yak *YakLine, wf *temporal.WorkflowState, shaveState *temporal.ShaveState, width int) {
 	var lines []string
 	sep := dimStyle.Render(strings.Repeat("─", 40))
 
@@ -99,6 +99,26 @@ func (s *sidebarModel) ShowYak(yak *YakLine, wf *temporal.WorkflowState, width i
 	}
 
 	lines = append(lines, padWidth(sep, width))
+
+	if shaveState != nil {
+		lines = append(lines, padWidth(pinkBoldStyle.Render("Shave Workflow:"), width))
+		phaseStyle := cyanStyle
+		switch shaveState.Phase {
+		case "needs-human", "cancelled", "failed", "terminated", "timed_out":
+			phaseStyle = wipStyle
+		case "done":
+			phaseStyle = greenStyle
+		}
+		lines = append(lines, padWidth(fmt.Sprintf("  Phase:     %s", phaseStyle.Render(shaveState.Phase)), width))
+		lines = append(lines, padWidth(fmt.Sprintf("  Iteration: %d/%d", shaveState.Iteration, shaveState.MaxRetries), width))
+		if shaveState.Workspace != "" {
+			lines = append(lines, padWidth(fmt.Sprintf("  Workspace: %s", dimStyle.Render(shaveState.Workspace)), width))
+		}
+		if shaveState.PRURL != "" {
+			lines = append(lines, padWidth(fmt.Sprintf("  PR:        %s", cyanStyle.Render(shaveState.PRURL)), width))
+		}
+		lines = append(lines, padWidth(sep, width))
+	}
 
 	if yak.Context != "" {
 		lines = append(lines, padWidth(pinkBoldStyle.Render("Context:"), width))

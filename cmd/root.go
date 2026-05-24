@@ -18,22 +18,12 @@ var rootCmd = &cobra.Command{
 	Short: "yaketyyak Temporal CLI",
 	Long: style.Render(`✦ yaketyyak — CI-triggered autonomous yak shaving
 
-Send signals and start barber/shave workflows on Temporal.`) + "\n\n" +
-		`Use subcommands to start workflows, send CI/g2g signals, provide PR feedback, and check status.`,
+Interactive terminal UI for browsing yaks and managing workflows.`) + "\n\n" +
+		`Scans current directory and below for git repos with .yaks/ directories.`,
 	Run: runTUI,
 }
 
 func Execute() {
-	rootCmd.AddCommand(startCmd)
-	rootCmd.AddCommand(ciSignalCmd)
-	rootCmd.AddCommand(g2gScanCmd)
-	rootCmd.AddCommand(prFeedbackCmd)
-	rootCmd.AddCommand(pauseCmd)
-	rootCmd.AddCommand(resumeCmd)
-	rootCmd.AddCommand(statusCmd)
-	rootCmd.AddCommand(workerCmd)
-	rootCmd.AddCommand(tuiCmd)
-
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
@@ -66,4 +56,11 @@ func init() {
 	rootCmd.PersistentFlags().String("llm-base-url", "http://localhost:11434/v1",
 		"OpenAI-compatible base URL (ollama, bifrost, etc.)")
 	rootCmd.PersistentFlags().String("llm-model", "llama3.2", "LLM model name")
+}
+
+func llmAPIKey() string {
+	if k := os.Getenv("YYX_LLM_API_KEY"); k != "" {
+		return k
+	}
+	return os.Getenv("LLM_API_KEY")
 }

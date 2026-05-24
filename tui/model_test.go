@@ -4,8 +4,13 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	historypb "go.temporal.io/api/history/v1"
 
 	"github.com/funkymonkeymonk/yaketyyak/temporal"
 )
@@ -417,6 +422,663 @@ func TestConfirmThenCancel(t *testing.T) {
 	view := m.View()
 	if !strings.Contains(view, "Test?") {
 		t.Error("Confirmation overlay should contain the message")
+	}
+}
+
+func TestConfirmOverlayDoesNotDoubleHeight(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "Test", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+	m.listView.SetCursor(1)
+
+	m.showConfirm = true
+	m.confirmMsg = "Shave yak: Test?"
+	m.confirmAction = "shave"
+
+	view := m.View()
+	lines := strings.Split(view, "\n")
+	if len(lines) != m.height {
+		t.Errorf("View height with confirm overlay: got %d lines, want %d. Content height doubled!", len(lines), m.height)
+	}
+}
+
+func TestShaveStartsWorkflow(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+	m.listView.SetCursor(1)
+
+	_, cmd := m.doShaveYak()
+	if cmd == nil {
+		t.Error("doShaveYak should return a command to execute the workflow")
+	}
+
+	if m.statusMsg == "" {
+		t.Error("doShaveYak should set a status message")
+	}
+}
+
+func TestShaveYakNeedsConfirmation(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+	m.listView.SetCursor(1)
+
+	_, cmd := m.shaveYak()
+	if cmd != nil {
+		t.Error("shaveYak should not return a command, only set confirm state")
+	}
+	if !m.showConfirm {
+		t.Error("shaveYak should set showConfirm = true")
+	}
+	if m.confirmAction != "shave" {
+		t.Errorf("confirmAction = %q, want \"shave\"", m.confirmAction)
+	}
+}
+
+func TestDoShaveYakRejectsNonYakSelection(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+	m.listView.SetCursor(0)
+
+	_, cmd := m.doShaveYak()
+	if cmd != nil {
+		t.Error("doShaveYak on a repo line should return nil command")
+	}
+}
+
+func TestSignalMsgFailureShown(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+
+	m.Update(signalMsg{action: "shave TestYak", err: fmt.Errorf("workflow failed")})
+
+	view := m.View()
+	if !strings.Contains(view, "failed") {
+		t.Error("signalMsg error should appear in status bar")
+	}
+}
+
+func TestSignalMsgSuccessShown(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+
+	m.Update(signalMsg{action: "shave TestYak", err: nil})
+
+	view := m.View()
+	if !strings.Contains(view, "sent") {
+		t.Error("signalMsg success should show 'sent' in status bar")
+	}
+}
+
+func TestDoShaveYakSetsShaveState(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+	m.listView.SetCursor(1)
+
+	m.doShaveYak()
+
+	if m.repos[0].ShaveState == nil {
+		t.Fatal("doShaveYak should set ShaveState on the repo")
+	}
+	if m.repos[0].ShaveState.YakName != "TestYak" {
+		t.Errorf("ShaveState.YakName = %q, want TestYak", m.repos[0].ShaveState.YakName)
+	}
+	if m.repos[0].ShaveState.Phase != "starting" {
+		t.Errorf("ShaveState.Phase = %q, want starting", m.repos[0].ShaveState.Phase)
+	}
+}
+
+func TestTemporalAllMsgAppliesShaveStates(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+
+	shaveState := &temporal.ShaveState{
+		YakName:    "TestYak",
+		Phase:      "implementing",
+		Iteration:  1,
+		MaxRetries: 3,
+		Workspace:  "shave-testyak",
+	}
+
+	m.Update(temporalAllMsg{
+		states:      []*temporal.WorkflowState{nil},
+		shaveStates: []*temporal.ShaveState{shaveState},
+	})
+
+	if m.repos[0].ShaveState == nil {
+		t.Fatal("temporalAllMsg should apply shave state")
+	}
+	if m.repos[0].ShaveState.Phase != "implementing" {
+		t.Errorf("ShaveState.Phase = %q, want implementing", m.repos[0].ShaveState.Phase)
+	}
+}
+
+func TestPollTickTriggersQuery(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+
+	_, cmd := m.Update(pollTickMsg{})
+	if cmd == nil {
+		t.Error("pollTickMsg should return a command to query temporal")
+	}
+}
+
+func TestInitStartsPolling(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+
+	m := New(repos, temporal.LLMConfig{})
+	cmd := m.Init()
+
+	if cmd == nil {
+		t.Error("Init should return commands (query + poll tick)")
+	}
+}
+
+func TestTerminalShaveStateFailed(t *testing.T) {
+	result := terminalShaveState("TestYak", 3) // WORKFLOW_EXECUTION_STATUS_FAILED
+	if result.Phase != "failed" {
+		t.Errorf("FAILED status should produce phase 'failed', got %q", result.Phase)
+	}
+	if result.YakName != "TestYak" {
+		t.Errorf("YakName = %q, want TestYak", result.YakName)
+	}
+}
+
+func TestTerminalShaveStateDone(t *testing.T) {
+	result := terminalShaveState("TestYak", 2) // WORKFLOW_EXECUTION_STATUS_COMPLETED
+	if result.Phase != "done" {
+		t.Errorf("COMPLETED status should produce phase 'done', got %q", result.Phase)
+	}
+}
+
+func TestTerminalShaveStateCancelled(t *testing.T) {
+	result := terminalShaveState("TestYak", 4) // WORKFLOW_EXECUTION_STATUS_CANCELED
+	if result.Phase != "cancelled" {
+		t.Errorf("CANCELED status should produce phase 'cancelled', got %q", result.Phase)
+	}
+}
+
+func TestSidebarShowsFailedShaveWorkflow(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+	repos[0].ShaveState = &temporal.ShaveState{
+		YakName: "TestYak",
+		Phase:   "failed",
+	}
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+	m.listView.SetCursor(1)
+	m.updateSidebar()
+
+	view := m.View()
+	if !strings.Contains(view, "Shave Workflow") {
+		t.Error("Sidebar should show 'Shave Workflow' section even when failed")
+	}
+	if !strings.Contains(view, "failed") {
+		t.Error("Sidebar should show 'failed' phase")
+	}
+}
+
+func TestSidebarShowsDoneShaveWorkflow(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+	repos[0].ShaveState = &temporal.ShaveState{
+		YakName: "TestYak",
+		Phase:   "done",
+	}
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+	m.listView.SetCursor(1)
+	m.updateSidebar()
+
+	view := m.View()
+	if !strings.Contains(view, "Shave Workflow") {
+		t.Error("Sidebar should show 'Shave Workflow' section when done")
+	}
+	if !strings.Contains(view, "done") {
+		t.Error("Sidebar should show 'done' phase")
+	}
+}
+
+func TestHistoryTargetWFID_PrefersShaveOverBarber(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+	repos[0].WFID = "yyx-orch-abc123"
+	repos[0].ShaveState = &temporal.ShaveState{YakName: "TestYak", Phase: "implementing"}
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.listView.SetCursor(1)
+
+	wfID := m.historyTargetWFID()
+	expected := temporal.ShaveWorkflowID("TestYak")
+	if wfID != expected {
+		t.Errorf("historyTargetWFID with active shave = %q, want %q", wfID, expected)
+	}
+}
+
+func TestHistoryTargetWFID_FallsBackToBarber(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+	repos[0].WFID = "yyx-orch-abc123"
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.listView.SetCursor(1)
+
+	wfID := m.historyTargetWFID()
+	if wfID != "yyx-orch-abc123" {
+		t.Errorf("historyTargetWFID without shave = %q, want yyx-orch-abc123", wfID)
+	}
+}
+
+func TestShowWorkflowHistorySetsState(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+	repos[0].WFID = "yyx-orch-abc123"
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+	m.listView.SetCursor(1)
+
+	_, cmd := m.showWorkflowHistory()
+	if !m.showHistory {
+		t.Error("showWorkflowHistory should set showHistory = true")
+	}
+	if m.historyWfID != "yyx-orch-abc123" {
+		t.Errorf("historyWfID = %q, want yyx-orch-abc123", m.historyWfID)
+	}
+	if cmd == nil {
+		t.Error("showWorkflowHistory should return a fetch command")
+	}
+	if len(m.historyLines) == 0 {
+		t.Error("showWorkflowHistory should set initial loading line")
+	}
+}
+
+func TestHistoryViewRenders(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+	repos[0].WFID = "yyx-orch-abc123"
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+
+	m.showHistory = true
+	m.historyWfID = "yyx-orch-abc123"
+	m.historyLines = []string{
+		"   1  12:00:00  WorkflowExecutionStarted",
+		"   2  12:00:01  ActivityTaskScheduled",
+		"   3  12:00:02  ActivityTaskFailed",
+	}
+
+	view := m.View()
+	if !strings.Contains(view, "Workflow History") {
+		t.Error("History view should show title")
+	}
+	if !strings.Contains(view, "yyx-orch-abc123") {
+		t.Error("History view should show workflow ID")
+	}
+	if !strings.Contains(view, "WorkflowExecutionStarted") {
+		t.Error("History view should show events")
+	}
+}
+
+func TestHistoryViewDismisses(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+	m := New(repos, temporal.LLMConfig{})
+	m.showHistory = true
+	m.historyWfID = "yyx-orch-abc123"
+	m.historyLines = []string{"event 1"}
+
+	m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+
+	if m.showHistory {
+		t.Error("Esc should dismiss history view")
+	}
+}
+
+func TestHistoryViewShowsStatus(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+	repos[0].WFID = "yyx-orch-abc123"
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+
+	m.showHistory = true
+	m.historyWfID = "yyx-orch-abc123"
+	m.historyStatus = "FAILED"
+	m.historyLines = []string{"   1  12:00:00  WorkflowExecutionStarted"}
+
+	view := m.View()
+	if !strings.Contains(view, "[FAILED]") {
+		t.Error("History view header should show status [FAILED]")
+	}
+}
+
+func TestPollTickRefreshesHistoryWhenShowing(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+	m := New(repos, temporal.LLMConfig{})
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+
+	m.showHistory = true
+	m.historyWfID = "yyx-orch-abc123"
+	m.historyLines = []string{"event"}
+
+	_, cmd := m.Update(pollTickMsg{})
+	if cmd == nil {
+		t.Error("poll tick should return commands when history is showing")
+	}
+}
+
+func TestFormatEventDetail_NoAttributes(t *testing.T) {
+	ev := &historypb.HistoryEvent{
+		EventId:   99,
+		EventType: 9999,
+	}
+	detail := formatEventDetail(ev, nil)
+	if detail != "" {
+		t.Errorf("unknown event type with no attributes should return empty, got %q", detail)
+	}
+}
+
+func TestHistoryEventsReversed(t *testing.T) {
+	lines := []string{"event1", "event2", "event3"}
+	for i, j := 0, len(lines)-1; i < j; i, j = i+1, j-1 {
+		lines[i], lines[j] = lines[j], lines[i]
+	}
+	if lines[0] != "event3" || lines[2] != "event1" {
+		t.Error("Events should be reversed: most recent first")
+	}
+}
+
+func TestFirstLine(t *testing.T) {
+	if firstLine("hello\nworld") != "hello" {
+		t.Error("firstLine should return text before newline")
+	}
+	if firstLine("hello\rworld") != "hello" {
+		t.Error("firstLine should return text before return")
+	}
+	if firstLine("hello") != "hello" {
+		t.Error("firstLine should return full text if no newline")
+	}
+}
+
+func TestExtractSpansFromEvents(t *testing.T) {
+	now := time.Now()
+	events := []*historypb.HistoryEvent{
+		{
+			EventId:   1,
+			EventTime: timestamppb.New(now),
+			EventType: 1,
+		},
+	}
+
+	if spans := extractSpans(events); len(spans) != 0 {
+		t.Errorf("extractSpans with no activity events should return empty, got %d", len(spans))
+	}
+}
+
+func TestDurLabel(t *testing.T) {
+	if durLabel(500*time.Millisecond) != "500ms" {
+		t.Errorf("500ms got %q", durLabel(500*time.Millisecond))
+	}
+	if durLabel(2500*time.Millisecond) != "2.5s" {
+		t.Errorf("2.5s got %q", durLabel(2500*time.Millisecond))
+	}
+	if durLabel(125*time.Second) != "2m5s" {
+		t.Errorf("125s got %q", durLabel(125*time.Second))
+	}
+}
+
+func TestFormatSpanBar(t *testing.T) {
+	s := activitySpan{
+		name:     "YxSync",
+		offset:   100 * time.Millisecond,
+		duration: 500 * time.Millisecond,
+		status:   "completed",
+	}
+	result := formatSpanBar(s, 40, time.Second)
+	if !strings.Contains(result, "YxSync") {
+		t.Error("span bar should contain activity name")
+	}
+	if !strings.Contains(result, "✓") {
+		t.Error("completed span should show ✓ marker")
+	}
+	if !strings.Contains(result, "500ms") {
+		t.Error("span bar should show duration")
+	}
+}
+
+func TestHistoryTogglesSort(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+	repos[0].WFID = "yyx-orch-abc123"
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+
+	m.showHistory = true
+	m.historyTimelineReverse = false
+	m.historyWfID = "yyx-orch-abc123"
+	m.historyStatus = "FAILED"
+	m.historyLines = []string{"event1", "event2"}
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
+	if !m.historyTimelineReverse {
+		t.Error("Pressing t should toggle timeline sort to ascending")
+	}
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}})
+	if m.historyTimelineReverse {
+		t.Error("Pressing t again should toggle back to descending")
+	}
+}
+
+func TestTimelineViewRenders(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+	repos[0].WFID = "yyx-orch-abc123"
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+
+	m.showHistory = true
+	m.historyTimelineReverse = false
+	m.historyWfID = "yyx-orch-abc123"
+	m.historyStatus = "FAILED"
+	m.historySpans = []activitySpan{
+		{name: "YxSync", offset: 0, duration: 1200 * time.Millisecond, status: "completed"},
+		{name: "YakClaim", offset: 1500 * time.Millisecond, duration: 800 * time.Millisecond, status: "completed"},
+		{name: "ShaveInitWs", offset: 2500 * time.Millisecond, duration: 1100 * time.Millisecond, status: "failed", errMsg: "command not found"},
+	}
+
+	view := m.View()
+	if !strings.Contains(view, "YxSync") {
+		t.Error("Timeline should show activity names")
+	}
+	if !strings.Contains(view, "✗") {
+		t.Error("Timeline should show failure markers")
+	}
+	if !strings.Contains(view, "command not found") {
+		t.Error("Timeline should show error messages")
+	}
+	if len(view) == 0 {
+		t.Error("Timeline view should produce output")
+	}
+}
+
+func TestSidebarShowsShaveWorkflowStatus(t *testing.T) {
+	yaks := []YakLine{
+		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
+	}
+	repos := makeYaks(yaks)
+	repos[0].ShaveState = &temporal.ShaveState{
+		YakName:    "TestYak",
+		Phase:      "implementing",
+		Iteration:  1,
+		MaxRetries: 3,
+		Workspace:  "shave-testyak",
+	}
+
+	m := New(repos, temporal.LLMConfig{})
+	m.buildTree()
+	m.listView.SetItems(m.treeLines)
+	m.width = 120
+	m.height = 30
+	m.syncProgramContext()
+	m.listView.SetCursor(1)
+	m.updateSidebar()
+
+	view := m.View()
+	if !strings.Contains(view, "Shave Workflow") {
+		t.Error("Sidebar should show 'Shave Workflow' section when shaving")
+	}
+	if !strings.Contains(view, "implementing") {
+		t.Error("Sidebar should show shave phase")
+	}
+	if !strings.Contains(view, "1/3") {
+		t.Error("Sidebar should show iteration count")
 	}
 }
 

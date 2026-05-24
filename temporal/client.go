@@ -1,7 +1,7 @@
 package temporal
 
 import (
-	"log"
+	"fmt"
 
 	"go.temporal.io/sdk/client"
 )
@@ -9,12 +9,12 @@ import (
 const WorkflowID = "yaketyyak-yak-shaving"
 const TaskQueue = "yaketyyak-tasks"
 
-func NewClient() client.Client {
+func NewClient() (client.Client, error) {
 	c, err := client.Dial(client.Options{
 		HostPort: "localhost:7233",
 	})
 	if err != nil {
-		log.Fatalf("Failed to create Temporal client: %v", err)
+		return nil, fmt.Errorf("failed to create Temporal client: %w", err)
 	}
-	return c
+	return c, nil
 }
