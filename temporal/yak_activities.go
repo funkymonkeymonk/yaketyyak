@@ -56,6 +56,12 @@ func InitWorkspace(ctx context.Context, repoRoot, yakName string) (string, error
 		return "", fmt.Errorf("create .workspaces dir: %w", err)
 	}
 
+	// Remove any stale workspace directory from a previous failed run.
+	fullWorkspacePath := filepath.Join(repoRoot, workspacePath)
+	if err := os.RemoveAll(fullWorkspacePath); err != nil {
+		return "", fmt.Errorf("clean stale workspace: %w", err)
+	}
+
 	fetch := exec.CommandContext(ctx, "jj", "git", "fetch")
 	fetch.Dir = repoRoot
 	if out, err := fetch.CombinedOutput(); err != nil {
