@@ -35,7 +35,21 @@ in
       exec = "op run --env-file=${projectRoot}/.env.op -- ${projectRoot}/dist/yyx-worker";
       process-compose = {
         availability.restart = "on_failure";
-        depends_on."temporal-dev-server".condition = "process_healthy";
+        depends_on = {
+          "temporal-dev-server".condition = "process_healthy";
+          "worker-build".condition = "process_completed_successfully";
+        };
+      };
+    };
+
+    worker-build = {
+      exec = ''
+        cd ${projectRoot} && mkdir -p dist && \
+        go build -o dist/yyx-worker ./cmd/yyx-worker && \
+        echo "worker built: $(dist/yyx-worker --version 2>/dev/null || git rev-parse --short HEAD)"
+      '';
+      process-compose = {
+        availability.restart = "no";
       };
     };
   };
@@ -130,7 +144,8 @@ in
     echo "    zellij --layout ${projectRoot}/devenv/zellij/layout.kdl  TUI with shell + devenv up"
     echo ""
     echo "  Workflow:"
-    echo "    yyx start --repo user/repo --repo-root /path          Start a workflow"
+    echo "    yyx shave <yak>                      Start a shave workflow"
+    echo "    dist/yyx shave <yak>                 (if yyx not installed)"
     echo ""
     echo "  MCP server (for AI assistants):"
     echo "    devenv mcp                            stdio mode"
