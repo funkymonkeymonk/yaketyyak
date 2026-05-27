@@ -2,12 +2,6 @@
 
 let
   projectRoot = builtins.toString ./.;
-  allowUnfreePkgs = import inputs.nixpkgs {
-    system = pkgs.system;
-    config.allowUnfreePredicate = pkg: builtins.elem (pkgs.lib.getName pkg) [
-      "1password-cli"
-    ];
-  };
 in
 {
   languages.go = {
@@ -21,7 +15,6 @@ in
     temporal-cli
     gotools
     zellij
-    allowUnfreePkgs._1password-cli
     inputs.llm-agents.packages.${pkgs.system}.pi
   ];
 
