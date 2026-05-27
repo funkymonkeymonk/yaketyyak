@@ -21,7 +21,7 @@ in
     temporal-dev-server.exec = "temporal server start-dev";
 
     worker = {
-      exec = "${projectRoot}/yyx worker";
+      exec = "${projectRoot}/yyx-worker";
       process-compose = {
         availability.restart = "always";
         replicas = 1;
@@ -42,9 +42,10 @@ in
 
   tasks = {
     "yyx:build" = {
-      description = "Build the yyx binary (fast, no lint/test)";
+      description = "Build yyx (TUI) and yyx-worker binaries";
       exec = ''
         go build -o yyx .
+        go build -o yyx-worker ./cmd/yyx-worker
       '';
     };
 
@@ -73,19 +74,20 @@ in
     };
 
     "yyx:install" = {
-      description = "Full pipeline: lint, test, build, install";
+      description = "Full pipeline: lint, test, build, install both binaries";
       after = [ "yyx:check" "yyx:build" ];
       exec = ''
         install -d "$GOPATH/bin"
         install -m 755 yyx "$GOPATH/bin/yyx"
-        echo "Installed yyx to $GOPATH/bin/yyx"
+        install -m 755 yyx-worker "$GOPATH/bin/yyx-worker"
+        echo "Installed yyx and yyx-worker to $GOPATH/bin"
       '';
     };
 
     "utils:clean" = {
       description = "Remove build artifacts";
       exec = ''
-        rm -f yyx
+        rm -f yyx yyx-worker
         go clean
       '';
     };
