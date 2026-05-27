@@ -76,7 +76,6 @@ in
         cd worker && npm ci --silent && npm run build
       '';
     };
-    };
 
 
 
