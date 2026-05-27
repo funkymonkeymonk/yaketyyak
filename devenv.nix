@@ -31,6 +31,16 @@ in
       };
     };
 
+    # Workflow worker (Go) — executes YakWorkflow, handles queries and signals.
+    workflow-worker = {
+      exec = "${projectRoot}/dist/yyx-worker";
+      process-compose = {
+        availability.restart = "on_failure";
+        depends_on."temporal-dev-server".condition = "process_healthy";
+      };
+    };
+
+    # Activity worker (TypeScript) — executes all activities via Pi SDK.
     worker = {
       exec = ''
         cd ${projectRoot}/worker && npm ci --silent
@@ -63,10 +73,11 @@ in
 
   tasks = {
     "yyx:build" = {
-      description = "Build yyx TUI binary (worker runs via tsx, no build needed)";
+      description = "Build yyx TUI and workflow worker binaries (activity worker runs via tsx)";
       exec = ''
         mkdir -p dist
         go build -o dist/yyx .
+        go build -o dist/yyx-worker ./cmd/yyx-worker
       '';
     };
 
