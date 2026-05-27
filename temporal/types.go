@@ -1,12 +1,11 @@
 package temporal
 
 // PiConfig holds the configuration for invoking the Pi coding agent.
+// Provider is always LiteLLM — configured via LITELLM_BASE_URL and LITELLM_API_KEY env vars.
 type PiConfig struct {
-	Provider string   // e.g. "anthropic", "openai", "google"
-	Model    string   // e.g. "sonnet", "gpt-4o"
-	Tools    []string // e.g. ["read","bash","edit","write"]
-	Skills   []string // paths to skill files loaded via --skill
-	APIKey   string   // passed via env var; stored here for worker injection
+	Model  string   // LiteLLM model name; uses gateway default if empty
+	Tools  []string // e.g. ["read","bash","edit","write"]
+	Skills []string // paths to skill files loaded via --skill
 }
 
 // DefaultPiTools are the tools enabled for every shave run.

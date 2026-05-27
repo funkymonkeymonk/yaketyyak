@@ -86,11 +86,11 @@ func CleanupWorkspace(ctx context.Context, repoRoot, workspaceName string) error
 
 // RunAgent invokes Pi in headless mode to implement the yak spec.
 // Pi runs inside the jj workspace with access to the full repo.
+// Provider is always LiteLLM — LITELLM_BASE_URL and LITELLM_API_KEY must be set in the environment.
 // The activity heartbeats so Temporal knows it's still alive during long runs.
 func RunAgent(ctx context.Context, yakName, repoRoot, workspaceName string, cfg PiConfig) error {
 	workspacePath := filepath.Join(repoRoot, ".workspaces", workspaceName)
 
-	// Fetch the yak context (spec) from yx.
 	contextFile, err := writeYakContextToFile(ctx, yakName, workspacePath)
 	if err != nil {
 		return err
@@ -107,13 +107,9 @@ func RunAgent(ctx context.Context, yakName, repoRoot, workspaceName string, cfg 
 		"--no-session",
 		"--tools", strings.Join(tools, ","),
 		"--extension", "npm:pi-provider-litellm",
+		"--provider", "litellm",
 	}
 
-	if cfg.Provider != "" {
-		args = append(args, "--provider", cfg.Provider)
-	} else {
-		args = append(args, "--provider", "litellm")
-	}
 	if cfg.Model != "" {
 		args = append(args, "--model", cfg.Model)
 	}
@@ -121,7 +117,6 @@ func RunAgent(ctx context.Context, yakName, repoRoot, workspaceName string, cfg 
 		args = append(args, "--skill", skill)
 	}
 
-	// Pass the spec as a file reference and a concise task directive.
 	args = append(args,
 		"@"+contextFile,
 		"Implement this yak. Follow the spec exactly. When done, commit your changes with jj.",
@@ -129,7 +124,7 @@ func RunAgent(ctx context.Context, yakName, repoRoot, workspaceName string, cfg 
 
 	cmd := exec.CommandContext(ctx, "pi", args...)
 	cmd.Dir = workspacePath
-	cmd.Env = piEnv(cfg)
+	cmd.Env = os.Environ() // inherits LITELLM_BASE_URL + LITELLM_API_KEY from op run
 
 	// Capture output so it appears in error messages; also heartbeat during long runs.
 	pr, pw, err := os.Pipe()
@@ -297,28 +292,6 @@ func writeYakContextToFile(ctx context.Context, yakName, workspacePath string) (
 	}
 
 	return f.Name(), nil
-}
-
-// piEnv builds the environment for the pi subprocess, injecting the API key
-// for the configured provider.
-func piEnv(cfg PiConfig) []string {
-	env := os.Environ()
-	if cfg.APIKey == "" {
-		return env
-	}
-	switch strings.ToLower(cfg.Provider) {
-	case "anthropic":
-		env = append(env, "ANTHROPIC_API_KEY="+cfg.APIKey)
-	case "openai":
-		env = append(env, "OPENAI_API_KEY="+cfg.APIKey)
-	case "google":
-		env = append(env, "GEMINI_API_KEY="+cfg.APIKey)
-	case "openrouter":
-		env = append(env, "OPENROUTER_API_KEY="+cfg.APIKey)
-	default:
-		env = append(env, "ANTHROPIC_API_KEY="+cfg.APIKey)
-	}
-	return env
 }
 
 // repoRemoteToPath derives "owner/repo" from the git remote URL.
