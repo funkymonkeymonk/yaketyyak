@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
 
 let
   projectRoot = builtins.toString ./.;
@@ -15,6 +15,8 @@ in
     temporal-cli
     gotools
     zellij
+    _1password-cli
+    inputs.llm-agents.packages.${pkgs.system}.pi
   ];
 
   processes = {
@@ -31,12 +33,18 @@ in
     };
 
     worker = {
-      exec = "${projectRoot}/dist/yyx-worker";
+      exec = "op run --env-file=${projectRoot}/.env.op -- ${projectRoot}/dist/yyx-worker";
       process-compose = {
         availability.restart = "on_failure";
         depends_on."temporal-dev-server".condition = "process_healthy";
       };
     };
+  };
+
+  containers."worker" = {
+    name = "yyx-worker";
+    copyToRoot = null;
+    startupCommand = "op run --env-file=${projectRoot}/.env.op -- ${projectRoot}/dist/yyx-worker";
   };
 
   scripts.yyx.exec = "${projectRoot}/dist/yyx";
