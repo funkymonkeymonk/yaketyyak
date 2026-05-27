@@ -32,20 +32,14 @@ in
     };
 
     worker = {
-      exec = "op run --env-file=${projectRoot}/.env.op -- node ${projectRoot}/worker/dist/worker.js";
+      exec = ''
+        cd ${projectRoot}/worker && npm ci --silent
+        exec op run --env-file=${projectRoot}/.env.op -- \
+          ${projectRoot}/worker/node_modules/.bin/tsx src/worker.ts
+      '';
       process-compose = {
         availability.restart = "on_failure";
-        depends_on = {
-          "temporal-dev-server".condition = "process_healthy";
-          "worker-build".condition = "process_completed_successfully";
-        };
-      };
-    };
-
-    worker-build = {
-      exec = "cd ${projectRoot}/worker && npm ci --silent && npm run build";
-      process-compose = {
-        availability.restart = "no";
+        depends_on."temporal-dev-server".condition = "process_healthy";
       };
     };
   };
@@ -53,7 +47,7 @@ in
   containers."worker" = {
     name = "yyx-worker";
     copyToRoot = null;
-    startupCommand = "op run --env-file=${projectRoot}/.env.op -- node ${projectRoot}/worker/dist/worker.js";
+    startupCommand = "op run --env-file=${projectRoot}/.env.op -- node ${projectRoot}/worker/node_modules/.bin/tsx src/worker.ts";
   };
 
   scripts.yyx.exec = "${projectRoot}/dist/yyx";
@@ -69,11 +63,10 @@ in
 
   tasks = {
     "yyx:build" = {
-      description = "Build yyx TUI binary and TypeScript worker";
+      description = "Build yyx TUI binary (worker runs via tsx, no build needed)";
       exec = ''
         mkdir -p dist
         go build -o dist/yyx .
-        cd worker && npm ci --silent && npm run build
       '';
     };
 
@@ -114,7 +107,7 @@ in
     "utils:clean" = {
       description = "Remove build artifacts";
       exec = ''
-        rm -rf dist/ worker/dist/
+        rm -rf dist/
         go clean
       '';
     };
