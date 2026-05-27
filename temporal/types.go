@@ -3,13 +3,16 @@ package temporal
 // PiConfig holds the configuration for invoking the Pi coding agent.
 // Provider is always LiteLLM — configured via LITELLM_BASE_URL and LITELLM_API_KEY env vars.
 type PiConfig struct {
-	Model  string   // LiteLLM model name; uses gateway default if empty
+	Model  string   // LiteLLM model name; defaults to DefaultPiModel
 	Tools  []string // e.g. ["read","bash","edit","write"]
 	Skills []string // paths to skill files loaded via --skill
 }
 
 // DefaultPiTools are the tools enabled for every shave run.
 var DefaultPiTools = []string{"read", "bash", "edit", "write"}
+
+// DefaultPiModel is the LiteLLM model used when no model is specified.
+const DefaultPiModel = "claude-sonnet-4-5-20250929"
 
 // PRFeedback carries review comments to feed back to the agent.
 type PRFeedback struct {

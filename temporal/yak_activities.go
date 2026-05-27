@@ -112,6 +112,8 @@ func RunAgent(ctx context.Context, yakName, repoRoot, workspaceName string, cfg 
 
 	if cfg.Model != "" {
 		args = append(args, "--model", cfg.Model)
+	} else {
+		args = append(args, "--model", DefaultPiModel)
 	}
 	for _, skill := range cfg.Skills {
 		args = append(args, "--skill", skill)
