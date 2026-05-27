@@ -51,6 +51,11 @@ func InitWorkspace(ctx context.Context, repoRoot, yakName string) (string, error
 	workspaceName := "shave-" + slug
 	workspacePath := ".workspaces/" + workspaceName
 
+	// Ensure the parent directory exists before jj tries to access it.
+	if err := os.MkdirAll(filepath.Join(repoRoot, ".workspaces"), 0755); err != nil {
+		return "", fmt.Errorf("create .workspaces dir: %w", err)
+	}
+
 	fetch := exec.CommandContext(ctx, "jj", "git", "fetch")
 	fetch.Dir = repoRoot
 	if out, err := fetch.CombinedOutput(); err != nil {
