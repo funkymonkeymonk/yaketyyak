@@ -1,98 +1,42 @@
 package temporal
 
-const G2GTag = "@g2g"
-
-type LLMConfig struct {
-	BaseURL string `json:"base_url"`
-	Model   string `json:"model"`
-	APIKey  string `json:"api_key"`
+// PiConfig holds the configuration for invoking the Pi coding agent.
+type PiConfig struct {
+	Provider string   // e.g. "anthropic", "openai", "google"
+	Model    string   // e.g. "sonnet", "gpt-4o"
+	Tools    []string // e.g. ["read","bash","edit","write"]
+	Skills   []string // paths to skill files loaded via --skill
+	APIKey   string   // passed via env var; stored here for worker injection
 }
 
-type FileChange struct {
-	Path    string `json:"path"`
-	Content string `json:"content"`
-}
+// DefaultPiTools are the tools enabled for every shave run.
+var DefaultPiTools = []string{"read", "bash", "edit", "write"}
 
-type CISignal struct {
-	Conclusion string
-	Branch     string
-	SHA        string
-	Details    string
-}
-
+// PRFeedback carries review comments to feed back to the agent.
 type PRFeedback struct {
 	PRNumber int
 	Comment  string
 	Author   string
 }
 
-type YakInfo struct {
-	Name     string
-	State    string
-	Context  string
-	Tags     []string
-	PRNumber int
-	PRURL    string
-	G2G      bool
+// YakWorkflowState is the queryable state of a running YakWorkflow.
+type YakWorkflowState struct {
+	YakName   string `json:"yak_name"`
+	Phase     string `json:"phase"`
+	Workspace string `json:"workspace"`
+	PRURL     string `json:"pr_url"`
+	PRNumber  int    `json:"pr_number"`
 }
 
-type WorkflowState struct {
-	Phase             string
-	CurrentYak        *YakInfo
-	PendingCISignals  []CISignal
-	PendingPRFeedback []PRFeedback
-	PendingG2GScans   int
-	CompletedYaks     int
-	FailedYaks        int
-	Repo              string
-	RepoRoot          string
-	G2GMode           bool
-}
-
-type G2GYak struct {
-	Name string   `json:"name"`
-	Tags []string `json:"tags"`
-	G2G  bool     `json:"g2g"`
-}
-
-type ClaimResult struct {
-	Name    string `json:"name"`
-	State   string `json:"state"`
-	Claimed bool   `json:"claimed"`
-}
-
-type AgentResult struct {
-	PRNumber int    `json:"pr_number"`
+// PRResult is returned by CreateDraftPR.
+type PRResult struct {
 	PRURL    string `json:"pr_url"`
-	Branch   string `json:"branch"`
+	PRNumber int    `json:"pr_number"`
 }
 
-type ShaveState struct {
-	YakName    string    `json:"yak_name"`
-	LLMConfig  LLMConfig `json:"llm_config"`
-	Repo       string    `json:"repo"`
-	RepoRoot   string    `json:"repo_root"`
-	MaxRetries int       `json:"max_retries"`
-	Iteration  int       `json:"iteration"`
-	Phase      string    `json:"phase"`
-	Workspace  string    `json:"workspace"`
-	PRNumber   int       `json:"pr_number"`
-	PRURL      string    `json:"pr_url"`
-}
-
-type ShaveValidationResult struct {
-	Passed bool   `json:"passed"`
-	Output string `json:"output"`
-}
-
-type ShaveReviewResult struct {
-	Passed bool     `json:"passed"`
-	Issues string   `json:"issues"`
-	Items  []string `json:"items"`
-}
-
-func ShaveWorkflowID(yakName string) string {
-	return "yyx-shave-" + sanitizeWorkflowID(yakName)
+// YakWorkflowID returns the deterministic Temporal workflow ID for a yak.
+func YakWorkflowID(yakName string) string {
+	return "yyx-yak-" + sanitizeWorkflowID(yakName)
 }
 
 func sanitizeWorkflowID(name string) string {

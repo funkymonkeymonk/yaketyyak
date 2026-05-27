@@ -18,31 +18,23 @@ func RunWorker() {
 	if err != nil {
 		log.Fatalf("Failed to create Temporal client: %v", err)
 	}
+	defer c.Close()
 
 	w := worker.New(c, TaskQueue, worker.Options{})
-	w.RegisterWorkflowWithOptions(BarberWorkflow, workflow.RegisterOptions{
-		Name: "BarberWorkflow",
+
+	w.RegisterWorkflowWithOptions(YakWorkflow, workflow.RegisterOptions{
+		Name: "YakWorkflow",
 	})
-	w.RegisterWorkflowWithOptions(ShaveWorkflow, workflow.RegisterOptions{
-		Name: "ShaveWorkflow",
-	})
-	w.RegisterActivity(YxSync)
-	w.RegisterActivity(YakTriageG2G)
-	w.RegisterActivity(YakTriage)
+
 	w.RegisterActivity(YakClaim)
-	w.RegisterActivity(YakRemoveG2GTag)
-	w.RegisterActivity(DispatchAgent)
-	w.RegisterActivity(WatchPRCI)
-	w.RegisterActivity(MergePR)
+	w.RegisterActivity(YakRelease)
 	w.RegisterActivity(YakMarkDone)
-	w.RegisterActivity(YakMarkRefinement)
-	w.RegisterActivity(CheckRefinement)
-	w.RegisterActivity(ShaveInitWorkspace)
-	w.RegisterActivity(ShaveImplement)
-	w.RegisterActivity(ShaveValidate)
-	w.RegisterActivity(ShaveAdversarialReview)
-	w.RegisterActivity(ShaveCreatePR)
-	w.RegisterActivity(ShaveCleanup)
+	w.RegisterActivity(WritePRToYak)
+	w.RegisterActivity(InitWorkspace)
+	w.RegisterActivity(CleanupWorkspace)
+	w.RegisterActivity(RunAgent)
+	w.RegisterActivity(CreateDraftPR)
+	w.RegisterActivity(WatchPRMerged)
 
 	if err := w.Start(); err != nil {
 		log.Fatalf("Failed to start worker: %v", err)
@@ -55,5 +47,4 @@ func RunWorker() {
 	<-sigCh
 
 	w.Stop()
-	c.Close()
 }
