@@ -4,4 +4,6 @@ dist/
 .yaks/
 *.log
 /yyx
+/yyx-worker
+.workspaces/
 .devenv/
