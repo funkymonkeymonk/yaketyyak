@@ -32,7 +32,7 @@ in
     };
 
     worker = {
-      exec = "op run --env-file=${projectRoot}/.env.op -- ${projectRoot}/dist/yyx-worker";
+      exec = "op run --env-file=${projectRoot}/.env.op -- node ${projectRoot}/worker/dist/worker.js";
       process-compose = {
         availability.restart = "on_failure";
         depends_on = {
@@ -43,11 +43,7 @@ in
     };
 
     worker-build = {
-      exec = ''
-        cd ${projectRoot} && mkdir -p dist && \
-        go build -o dist/yyx-worker ./cmd/yyx-worker && \
-        echo "worker built: $(dist/yyx-worker --version 2>/dev/null || git rev-parse --short HEAD)"
-      '';
+      exec = "cd ${projectRoot}/worker && npm ci --silent && npm run build";
       process-compose = {
         availability.restart = "no";
       };
@@ -57,7 +53,7 @@ in
   containers."worker" = {
     name = "yyx-worker";
     copyToRoot = null;
-    startupCommand = "op run --env-file=${projectRoot}/.env.op -- ${projectRoot}/dist/yyx-worker";
+    startupCommand = "op run --env-file=${projectRoot}/.env.op -- node ${projectRoot}/worker/dist/worker.js";
   };
 
   scripts.yyx.exec = "${projectRoot}/dist/yyx";
@@ -73,12 +69,13 @@ in
 
   tasks = {
     "yyx:build" = {
-      description = "Build yyx (TUI) and yyx-worker binaries into dist/";
+      description = "Build yyx TUI binary and TypeScript worker";
       exec = ''
         mkdir -p dist
         go build -o dist/yyx .
-        go build -o dist/yyx-worker ./cmd/yyx-worker
+        cd worker && npm ci --silent && npm run build
       '';
+    };
     };
 
 
@@ -86,14 +83,14 @@ in
     "yyx:test" = {
       description = "Run all tests";
       exec = ''
-        go test ./...
+        go test . ./cmd/... ./temporal/... ./tui/...
       '';
     };
 
     "yyx:lint" = {
       description = "Run go vet";
       exec = ''
-        go vet ./...
+        go vet . ./cmd/... ./temporal/... ./tui/...
       '';
     };
 
@@ -106,20 +103,19 @@ in
     };
 
     "yyx:install" = {
-      description = "Full pipeline: lint, test, build, install both binaries";
+      description = "Full pipeline: lint, test, build, install yyx TUI";
       after = [ "yyx:check" "yyx:build" ];
       exec = ''
         install -d "$GOPATH/bin"
         install -m 755 dist/yyx "$GOPATH/bin/yyx"
-        install -m 755 dist/yyx-worker "$GOPATH/bin/yyx-worker"
-        echo "Installed yyx and yyx-worker to $GOPATH/bin"
+        echo "Installed yyx to $GOPATH/bin"
       '';
     };
 
     "utils:clean" = {
       description = "Remove build artifacts";
       exec = ''
-        rm -rf dist/
+        rm -rf dist/ worker/dist/
         go clean
       '';
     };

@@ -8,9 +8,21 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+// Activity stubs — implementations live in worker/src/activities.ts and worker/src/run-agent.ts.
+// Names must match the keys registered in the TypeScript worker exactly.
+var (
+	yakClaim         = "YakClaim"
+	yakRelease       = "YakRelease"
+	yakMarkDone      = "YakMarkDone"
+	writePRToYak     = "WritePRToYak"
+	initWorkspace    = "InitWorkspace"
+	cleanupWorkspace = "CleanupWorkspace"
+	runAgent         = "RunAgent"
+	createDraftPR    = "CreateDraftPR"
+	watchPRMerged    = "WatchPRMerged"
+)
+
 // YakWorkflow is a single long-running workflow for one yak.
-// It starts when the yak is ready to shave (@g2g), runs until the yak is
-// closed (PR merged or won't-do signal), and uses Pi as the coding agent.
 func YakWorkflow(ctx workflow.Context, yakName string, repoRoot string, cfg PiConfig) (string, error) {
 	state := &YakWorkflowState{
 		YakName: yakName,
@@ -30,48 +42,45 @@ func YakWorkflow(ctx workflow.Context, yakName string, repoRoot string, cfg PiCo
 		wontDo = true
 	})
 
-	actOpts := func(timeout time.Duration) workflow.Context {
+	noRetry := func(timeout time.Duration) workflow.Context {
 		return workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 			StartToCloseTimeout: timeout,
-			// Activities that shell out are not retried automatically —
-			// transient failures should be handled inside the activity.
-			RetryPolicy: &temporal.RetryPolicy{MaximumAttempts: 1},
+			RetryPolicy:         &temporal.RetryPolicy{MaximumAttempts: 1},
 		})
 	}
-	retryOpts := func(timeout time.Duration, attempts int32) workflow.Context {
+	withRetry := func(timeout time.Duration, attempts int32) workflow.Context {
 		return workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 			StartToCloseTimeout: timeout,
 			RetryPolicy:         &temporal.RetryPolicy{MaximumAttempts: attempts},
 		})
 	}
 
-	// 1. Claim the yak — sets state to wip, acts as a distributed lock.
+	// 1. Claim the yak.
 	state.Phase = "claiming"
-	if err := workflow.ExecuteActivity(retryOpts(30*time.Second, 3), YakClaim, yakName).Get(ctx, nil); err != nil {
+	if err := workflow.ExecuteActivity(withRetry(30*time.Second, 3), yakClaim, yakName).Get(ctx, nil); err != nil {
 		return "", fmt.Errorf("claim yak %s: %w", yakName, err)
 	}
 
-	// Ensure we release the yak if we exit without completing normally.
 	defer func() {
 		if state.Phase != "done" && !wontDo {
-			workflow.ExecuteActivity(retryOpts(30*time.Second, 3), YakRelease, yakName,
+			workflow.ExecuteActivity(withRetry(30*time.Second, 3), yakRelease, yakName,
 				fmt.Sprintf("workflow interrupted at phase %s", state.Phase)).Get(ctx, nil)
 		}
 	}()
 
-	// 2. Init workspace — jj workspace add .workspaces/shave-<slug>
+	// 2. Init workspace.
 	state.Phase = "init-workspace"
 	var workspaceName string
-	if err := workflow.ExecuteActivity(actOpts(60*time.Second), InitWorkspace, repoRoot, yakName).Get(ctx, &workspaceName); err != nil {
+	if err := workflow.ExecuteActivity(noRetry(60*time.Second), initWorkspace, repoRoot, yakName).Get(ctx, &workspaceName); err != nil {
 		return "", fmt.Errorf("init workspace: %w", err)
 	}
 	state.Workspace = workspaceName
 
-	defer workflow.ExecuteActivity(actOpts(30*time.Second), CleanupWorkspace, repoRoot, workspaceName).Get(ctx, nil)
+	defer workflow.ExecuteActivity(noRetry(30*time.Second), cleanupWorkspace, repoRoot, workspaceName).Get(ctx, nil)
 
-	// 3. Run agent — Pi implements the yak spec in the workspace.
+	// 3. Run Pi agent.
 	state.Phase = "implementing"
-	if err := workflow.ExecuteActivity(actOpts(4*time.Hour), RunAgent, yakName, repoRoot, workspaceName, cfg).Get(ctx, nil); err != nil {
+	if err := workflow.ExecuteActivity(noRetry(4*time.Hour), runAgent, yakName, repoRoot, workspaceName, cfg).Get(ctx, nil); err != nil {
 		return "", fmt.Errorf("run agent: %w", err)
 	}
 
@@ -79,42 +88,35 @@ func YakWorkflow(ctx workflow.Context, yakName string, repoRoot string, cfg PiCo
 		return fmt.Sprintf("yak %s marked won't-do during implementation", yakName), nil
 	}
 
-	// 4. Create draft PR — human reviews before it moves forward.
+	// 4. Create draft PR.
 	state.Phase = "creating-pr"
 	var pr PRResult
-	if err := workflow.ExecuteActivity(actOpts(5*time.Minute), CreateDraftPR, repoRoot, workspaceName, yakName).Get(ctx, &pr); err != nil {
+	if err := workflow.ExecuteActivity(noRetry(5*time.Minute), createDraftPR, repoRoot, workspaceName, yakName).Get(ctx, &pr); err != nil {
 		return "", fmt.Errorf("create draft PR: %w", err)
 	}
 	state.PRURL = pr.PRURL
 	state.PRNumber = pr.PRNumber
 
-	// Write PR URL back to the yak so it's visible in yx list / TUI.
-	workflow.ExecuteActivity(retryOpts(30*time.Second, 3), WritePRToYak, yakName, pr.PRURL).Get(ctx, nil)
+	workflow.ExecuteActivity(withRetry(30*time.Second, 3), writePRToYak, yakName, pr.PRURL).Get(ctx, nil)
 
-	// 5. Wait for the PR to be merged (or won't-do).
-	// The human drives: review, approve, merge. The workflow just observes.
+	// 5. Wait for merge.
 	state.Phase = "waiting-for-merge"
 	sel := workflow.NewSelector(ctx)
-
 	mergedCh := workflow.NewChannel(ctx)
 
-	// Poll for merge in a goroutine; signal the channel when done.
 	workflow.Go(ctx, func(gCtx workflow.Context) {
 		pollCtx := workflow.WithActivityOptions(gCtx, workflow.ActivityOptions{
-			StartToCloseTimeout: 7 * 24 * time.Hour, // up to a week
+			StartToCloseTimeout: 7 * 24 * time.Hour,
 			HeartbeatTimeout:    2 * time.Minute,
 			RetryPolicy:         &temporal.RetryPolicy{MaximumAttempts: 1},
 		})
 		var merged bool
-		err := workflow.ExecuteActivity(pollCtx, WatchPRMerged, pr.PRNumber, repoRoot).Get(gCtx, &merged)
-		if err == nil && merged {
+		if err := workflow.ExecuteActivity(pollCtx, watchPRMerged, pr.PRNumber, repoRoot).Get(gCtx, &merged); err == nil && merged {
 			mergedCh.Send(gCtx, true)
 		}
 	})
 
-	sel.AddReceive(mergedCh, func(c workflow.ReceiveChannel, _ bool) {
-		c.Receive(ctx, nil)
-	})
+	sel.AddReceive(mergedCh, func(c workflow.ReceiveChannel, _ bool) { c.Receive(ctx, nil) })
 	sel.AddReceive(wontDoChan, func(c workflow.ReceiveChannel, _ bool) {
 		c.Receive(ctx, nil)
 		wontDo = true
@@ -122,13 +124,13 @@ func YakWorkflow(ctx workflow.Context, yakName string, repoRoot string, cfg PiCo
 	sel.Select(ctx)
 
 	if wontDo {
-		workflow.ExecuteActivity(retryOpts(30*time.Second, 3), YakRelease, yakName, "marked won't-do").Get(ctx, nil)
+		workflow.ExecuteActivity(withRetry(30*time.Second, 3), yakRelease, yakName, "marked won't-do").Get(ctx, nil)
 		return fmt.Sprintf("yak %s marked won't-do", yakName), nil
 	}
 
-	// 6. PR merged — close the yak.
+	// 6. Close the yak.
 	state.Phase = "done"
-	if err := workflow.ExecuteActivity(retryOpts(30*time.Second, 3), YakMarkDone, yakName).Get(ctx, nil); err != nil {
+	if err := workflow.ExecuteActivity(withRetry(30*time.Second, 3), yakMarkDone, yakName).Get(ctx, nil); err != nil {
 		return "", fmt.Errorf("mark yak done: %w", err)
 	}
 
