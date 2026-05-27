@@ -12,7 +12,7 @@ type PiConfig struct {
 var DefaultPiTools = []string{"read", "bash", "edit", "write"}
 
 // DefaultPiModel is the LiteLLM model used when no model is specified.
-const DefaultPiModel = "moonshotai.kimi-k2.5"
+const DefaultPiModel = "claude-sonnet-4-6"
 
 // PRFeedback carries review comments to feed back to the agent.
 type PRFeedback struct {
