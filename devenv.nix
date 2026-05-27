@@ -18,7 +18,7 @@ in
   ];
 
   processes = {
-    temporal-dev-server.exec = "temporal server start-dev";
+    temporal-dev-server.exec = "temporal server start-dev --ui-port 8233 --http-port 7243";
 
     worker = {
       exec = "${projectRoot}/yyx-worker";
