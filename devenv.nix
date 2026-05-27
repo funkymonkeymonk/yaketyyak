@@ -18,14 +18,23 @@ in
   ];
 
   processes = {
-    temporal-dev-server.exec = "temporal server start-dev --ui-port 8233 --http-port 7243";
+    temporal-dev-server = {
+      exec = "temporal server start-dev --ui-port 8233 --http-port 7243";
+      process-compose = {
+        readiness_probe = {
+          exec.command = "temporal operator cluster health --address localhost:7233";
+          initial_delay_seconds = 2;
+          period_seconds = 2;
+          failure_threshold = 10;
+        };
+      };
+    };
 
     worker = {
       exec = "${projectRoot}/yyx-worker";
       process-compose = {
-        availability.restart = "always";
-        replicas = 1;
-        depends_on."temporal-dev-server".condition = "process_started";
+        availability.restart = "on_failure";
+        depends_on."temporal-dev-server".condition = "process_healthy";
       };
     };
   };
