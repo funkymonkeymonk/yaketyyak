@@ -3,7 +3,6 @@ dist/
 .yaks
 .yaks/
 *.log
-/yyx
-/yyx-worker
+.devenv/
 .workspaces/
 .devenv/

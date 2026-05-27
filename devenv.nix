@@ -31,7 +31,7 @@ in
     };
 
     worker = {
-      exec = "${projectRoot}/yyx-worker";
+      exec = "${projectRoot}/dist/yyx-worker";
       process-compose = {
         availability.restart = "on_failure";
         depends_on."temporal-dev-server".condition = "process_healthy";
@@ -39,22 +39,24 @@ in
     };
   };
 
-  scripts.yyx.exec = "${projectRoot}/yyx";
+  scripts.yyx.exec = "${projectRoot}/dist/yyx";
 
   scripts.dev-run.exec = ''
     set -e
     echo "Building..."
-    go build -o yyx .
+    mkdir -p dist
+    go build -o dist/yyx .
     echo "Launching TUI..."
-    exec ./yyx
+    exec dist/yyx
   '';
 
   tasks = {
     "yyx:build" = {
-      description = "Build yyx (TUI) and yyx-worker binaries";
+      description = "Build yyx (TUI) and yyx-worker binaries into dist/";
       exec = ''
-        go build -o yyx .
-        go build -o yyx-worker ./cmd/yyx-worker
+        mkdir -p dist
+        go build -o dist/yyx .
+        go build -o dist/yyx-worker ./cmd/yyx-worker
       '';
     };
 
@@ -87,8 +89,8 @@ in
       after = [ "yyx:check" "yyx:build" ];
       exec = ''
         install -d "$GOPATH/bin"
-        install -m 755 yyx "$GOPATH/bin/yyx"
-        install -m 755 yyx-worker "$GOPATH/bin/yyx-worker"
+        install -m 755 dist/yyx "$GOPATH/bin/yyx"
+        install -m 755 dist/yyx-worker "$GOPATH/bin/yyx-worker"
         echo "Installed yyx and yyx-worker to $GOPATH/bin"
       '';
     };
@@ -96,7 +98,7 @@ in
     "utils:clean" = {
       description = "Remove build artifacts";
       exec = ''
-        rm -f yyx yyx-worker
+        rm -rf dist/
         go clean
       '';
     };
