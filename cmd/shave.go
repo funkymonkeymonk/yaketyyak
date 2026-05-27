@@ -30,7 +30,7 @@ The yak name can be given as space-separated words or hyphenated:
 func init() {
 	rootCmd.AddCommand(shaveCmd)
 	shaveCmd.Flags().String("repo-root", "", "Path to repo root (defaults to current directory)")
-	shaveCmd.Flags().String("pi-provider", "openai", "Pi LLM provider (openai, anthropic, google, ...)")
+	shaveCmd.Flags().String("pi-provider", "litellm", "Pi LLM provider (litellm, anthropic, openai, ...)")
 	shaveCmd.Flags().String("pi-model", "", "Pi model (e.g. sonnet, gpt-4o); uses provider default if unset")
 	shaveCmd.Flags().StringSlice("pi-tools", temporal.DefaultPiTools, "Comma-separated Pi tools to enable")
 	shaveCmd.Flags().StringArray("pi-skill", nil, "Pi skill file paths to load (repeatable)")

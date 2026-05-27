@@ -106,10 +106,13 @@ func RunAgent(ctx context.Context, yakName, repoRoot, workspaceName string, cfg 
 		"--print",
 		"--no-session",
 		"--tools", strings.Join(tools, ","),
+		"--extension", "npm:pi-provider-litellm",
 	}
 
 	if cfg.Provider != "" {
 		args = append(args, "--provider", cfg.Provider)
+	} else {
+		args = append(args, "--provider", "litellm")
 	}
 	if cfg.Model != "" {
 		args = append(args, "--model", cfg.Model)
