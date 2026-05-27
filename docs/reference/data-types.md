@@ -6,60 +6,60 @@ Core data types used by the `BarberWorkflow`.
 
 Carries CI pipeline completion data.
 
-```python
-@dataclass
-class CISignal:
-    conclusion: str    # "success" | "failure" | "cancelled"
-    branch: str        # git branch
-    sha: str           # commit SHA
-    details: str       # optional JSON with run metadata
+```go
+type CISignal struct {
+    Conclusion string // "success" | "failure" | "cancelled"
+    Branch     string // git branch
+    SHA        string // commit SHA
+    Details    string // optional JSON with run metadata
+}
 ```
 
 ## PRFeedback
 
 Carries a PR review comment for the rework loop.
 
-```python
-@dataclass
-class PRFeedback:
-    pr_number: int     # GitHub PR number
-    comment: str       # review body
-    author: str        # reviewer handle
+```go
+type PRFeedback struct {
+    PRNumber int    // GitHub PR number
+    Comment  string // review body
+    Author   string // reviewer handle
+}
 ```
 
 ## YakInfo
 
 Tracks the currently active yak.
 
-```python
-@dataclass
-class YakInfo:
-    name: str          # yak name
-    state: str         # "todo" | "wip" | "done"
-    context: str       # yak context markdown
-    tags: list[str]    # yak tags (e.g. ["@g2g"])
-    pr_number: int | None
-    pr_url: str | None
-    g2g: bool          # was this g2g-triggered?
+```go
+type YakInfo struct {
+    Name     string
+    State    string   // "todo" | "wip" | "done"
+    Context  string   // yak context markdown
+    Tags     []string // yak tags (e.g. ["@g2g"])
+    PRNumber int
+    PRURL    string
+    G2G      bool     // was this g2g-triggered?
+}
 ```
 
 ## WorkflowState
 
 Full workflow state accessible via the `status()` query.
 
-```python
-@dataclass
-class WorkflowState:
-    phase: str                    # "idle" | "triaging" | "claiming" | "implementing" | "watching-ci" | "reviewing"
-    current_yak: YakInfo | None
-    pending_ci_signals: list[CISignal]
-    pending_pr_feedback: list[PRFeedback]
-    pending_g2g_scans: int
-    completed_yaks: int
-    failed_yaks: int
-    repo: str
-    repo_root: str
-    g2g_mode: bool
+```go
+type WorkflowState struct {
+    Phase             string   // "idle" | "triaging" | "claiming" | "implementing" | "watching-ci" | "reviewing"
+    CurrentYak        *YakInfo
+    PendingCISignals  []CISignal
+    PendingPRFeedback []PRFeedback
+    PendingG2GScans   int
+    CompletedYaks     int
+    FailedYaks        int
+    Repo              string
+    RepoRoot          string
+    G2GMode           bool
+}
 ```
 
 > For signal payloads, see [Signals Reference](signals.md).

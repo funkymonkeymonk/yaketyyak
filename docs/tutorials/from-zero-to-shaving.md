@@ -48,10 +48,10 @@ temporal --version
 ## Step 3: Build the yyx CLI
 
 ```bash
-devenv task project:setup
+devenv tasks run yyx:install
 ```
 
-This builds the `yyx` binary and prints next steps. The resulting binary is your control tool for starting workflows and sending signals.
+This builds the `yyx` binary and runs linting and tests. The resulting binary is your control tool for starting workflows and sending signals.
 
 ## Step 4: Start all processes
 
@@ -174,7 +174,7 @@ If successful, the yak should show state `done`.
 ## What you learned
 
 - How to set up the yaketyyak dev environment with devenv
-- How to build the `yyx` CLI with `devenv task project:setup`
+- How to build the `yyx` CLI with `devenv tasks run yyx:install`
 - How to start all processes (Temporal dev server + worker) with `devenv up`
 - How to scale workers with `devenv up --scale worker=N`
 - How to start the BarberWorkflow pointing at your repository or fork

@@ -13,13 +13,6 @@ type KeyMap struct {
 	Quit          key.Binding
 	Select        key.Binding
 	Edit          key.Binding
-	Start         key.Binding
-	Shave         key.Binding
-	Pause         key.Binding
-	Resume        key.Binding
-	G2G           key.Binding
-	CI            key.Binding
-	History       key.Binding
 	Confirm       key.Binding
 	Cancel        key.Binding
 	NextTab       key.Binding
@@ -40,13 +33,6 @@ func DefaultKeyMap() KeyMap {
 		Quit:          key.NewBinding(key.WithKeys("q", "esc", "ctrl+c"), key.WithHelp("q", "quit")),
 		Select:        key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "context")),
 		Edit:          key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit")),
-		Start:         key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start")),
-		Shave:         key.NewBinding(key.WithKeys("v"), key.WithHelp("v", "shave")),
-		Pause:         key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "pause")),
-		Resume:        key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "resume")),
-		G2G:           key.NewBinding(key.WithKeys("g"), key.WithHelp("g", "g2g")),
-		CI:            key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "ci")),
-		History:       key.NewBinding(key.WithKeys("h"), key.WithHelp("h", "history")),
 		Confirm:       key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "confirm")),
 		Cancel:        key.NewBinding(key.WithKeys("n", "esc"), key.WithHelp("n/esc", "cancel")),
 		NextTab:       key.NewBinding(key.WithKeys("tab", "ctrl+right"), key.WithHelp("tab", "next tab")),
@@ -63,9 +49,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Home, k.End},
-		{k.Select, k.Edit, k.Start, k.Shave},
-		{k.Pause, k.Resume, k.G2G, k.CI},
-		{k.History},
+		{k.Select, k.Edit},
 		{k.NextTab, k.PrevTab, k.Tab1, k.Tab2},
 		{k.Refresh, k.ToggleHelp, k.Quit},
 	}

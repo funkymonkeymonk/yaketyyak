@@ -122,21 +122,21 @@ Retry: 1 attempt, 30s timeout
 
 ### ShaveValidationResult
 
-```python
-@dataclass
-class ShaveValidationResult:
-    passed: bool      # True if all checks passed
-    output: str       # Command output on failure
+```go
+type ShaveValidationResult struct {
+    Passed bool   // true if all checks passed
+    Output string // command output on failure
+}
 ```
 
 ### ShaveReviewResult
 
-```python
-@dataclass
-class ShaveReviewResult:
-    passed: bool        # True if reviewer found no issues
-    issues: str         # Human-readable summary of issues
-    items: list[str]    # Individual issue descriptions
+```go
+type ShaveReviewResult struct {
+    Passed bool     // true if reviewer found no issues
+    Issues string   // human-readable summary of issues
+    Items  []string // individual issue descriptions
+}
 ```
 
 > For the workflow that orchestrates these activities, see [ShaveWorkflow Reference](shave-workflow.md).

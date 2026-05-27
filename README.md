@@ -1,12 +1,16 @@
 # yaketyyak
 
-Temporal workflow for CI-triggered and g2g-triggered autonomous yak shaving.
+Autonomous yak shaving, end to end.
 
-When a CI build finishes — or when a yak is tagged `@g2g` ("good to go") — a durable Temporal workflow claims the yak, dispatches a coding agent (Pi, Codex, Claude Code, or OpenCode), watches the resulting PR through CI, handles review feedback, merges, and marks the yak done. It survives crashes and reboots.
+yaketyyak runs a durable Temporal workflow that claims a yak, dispatches a coding agent (Pi, Codex, Claude Code, or OpenCode) to implement it, opens a PR, handles review feedback, merges, and marks the yak done — all without human intervention. It survives crashes and reboots.
+
+CI signals are one way the workflow is nudged forward: when a build breaks during shaving, the CI result resumes the workflow so the agent can fix it. A `@g2g` tag and PR review feedback do the same.
 
 ```
-CI finished ──┐
-Yak tagged @g2g ─┤──→ Temporal Workflow → claim → implement → PR → merge → done
+Yak claimed ──────────────────→ implement → PR → merge → done
+                                    ↑
+CI finished ──┐                     │ (resume after interruption)
+Yak tagged @g2g ─┤─────────────────┘
 PR feedback ───┘
 ```
 

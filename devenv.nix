@@ -94,7 +94,7 @@ in
   enterShell = ''
     echo "✦ yaketyyak dev environment"
     echo "  Go: $(go version 2>/dev/null || echo 'not found')"
-    echo "  yyx: $(which yyx 2>/dev/null || echo 'run \`devenv tasks run project:setup\` first')"
+    echo "  yyx: $(which yyx 2>/dev/null || echo 'run \`devenv tasks run yyx:install\` first')"
     echo ""
     echo "  Available tasks:"
     echo "    devenv tasks list                          # discover all tasks"

@@ -8,8 +8,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
-
-	"github.com/funkymonkeymonk/yaketyyak/temporal"
 )
 
 type sidebarModel struct {
@@ -54,36 +52,14 @@ func (s *sidebarModel) ShowRepo(repo *Repo, width int) {
 	lines = append(lines, padWidth(fmt.Sprintf("Yaks:   %d", len(repo.Yaks)), width))
 	lines = append(lines, padWidth(sep, width))
 
-	if repo.WFState != nil {
-		lines = append(lines, padWidth(fmt.Sprintf("Workflow: %s", greenStyle.Render("connected")), width))
-		lines = append(lines, padWidth(fmt.Sprintf("Phase:    %s", cyanStyle.Render(repo.WFState.Phase)), width))
-		if repo.WFState.CurrentYak != nil {
-			lines = append(lines, padWidth(fmt.Sprintf("Current:  %s", repo.WFState.CurrentYak.Name), width))
-			if repo.WFState.CurrentYak.PRURL != "" {
-				lines = append(lines, padWidth(fmt.Sprintf("PR:       %s", repo.WFState.CurrentYak.PRURL), width))
-			}
-		}
-		lines = append(lines, padWidth(fmt.Sprintf("Done:     %d  Failed: %d",
-			repo.WFState.CompletedYaks, repo.WFState.FailedYaks), width))
-	} else {
-		lines = append(lines, padWidth(fmt.Sprintf("Workflow: %s", dimStyle.Render("not started")), width))
-	}
-	lines = append(lines, padWidth(sep, width))
-
 	lines = append(lines, padWidth(pinkBoldStyle.Render("Actions:"), width))
-	if repo.WFState == nil {
-		lines = append(lines, padWidth(fmt.Sprintf("  [%s] Start workflow", dimStyle.Render("s")), width))
-	} else {
-		lines = append(lines, padWidth(fmt.Sprintf("  [%s] Pause   [%s] Resume   [%s] G2G scan",
-			dimStyle.Render("p"), dimStyle.Render("r"), dimStyle.Render("g")), width))
-		lines = append(lines, padWidth(fmt.Sprintf("  [%s] CI signal", dimStyle.Render("c")), width))
-	}
+	lines = append(lines, padWidth(fmt.Sprintf("  [%s] Refresh", dimStyle.Render("Ctrl+R")), width))
 
 	s.viewport.GotoTop()
 	s.viewport.SetContent(strings.Join(lines, "\n"))
 }
 
-func (s *sidebarModel) ShowYak(yak *YakLine, wf *temporal.WorkflowState, shaveState *temporal.ShaveState, width int) {
+func (s *sidebarModel) ShowYak(yak *YakLine, width int) {
 	var lines []string
 	sep := dimStyle.Render(strings.Repeat("─", 40))
 
@@ -100,26 +76,6 @@ func (s *sidebarModel) ShowYak(yak *YakLine, wf *temporal.WorkflowState, shaveSt
 
 	lines = append(lines, padWidth(sep, width))
 
-	if shaveState != nil {
-		lines = append(lines, padWidth(pinkBoldStyle.Render("Shave Workflow:"), width))
-		phaseStyle := cyanStyle
-		switch shaveState.Phase {
-		case "needs-human", "cancelled", "failed", "terminated", "timed_out":
-			phaseStyle = wipStyle
-		case "done":
-			phaseStyle = greenStyle
-		}
-		lines = append(lines, padWidth(fmt.Sprintf("  Phase:     %s", phaseStyle.Render(shaveState.Phase)), width))
-		lines = append(lines, padWidth(fmt.Sprintf("  Iteration: %d/%d", shaveState.Iteration, shaveState.MaxRetries), width))
-		if shaveState.Workspace != "" {
-			lines = append(lines, padWidth(fmt.Sprintf("  Workspace: %s", dimStyle.Render(shaveState.Workspace)), width))
-		}
-		if shaveState.PRURL != "" {
-			lines = append(lines, padWidth(fmt.Sprintf("  PR:        %s", cyanStyle.Render(shaveState.PRURL)), width))
-		}
-		lines = append(lines, padWidth(sep, width))
-	}
-
 	if yak.Context != "" {
 		lines = append(lines, padWidth(pinkBoldStyle.Render("Context:"), width))
 		ctxWrap := width - 2
@@ -132,17 +88,7 @@ func (s *sidebarModel) ShowYak(yak *YakLine, wf *temporal.WorkflowState, shaveSt
 		lines = append(lines, padWidth(sep, width))
 	}
 
-	if wf != nil {
-		lines = append(lines, padWidth(fmt.Sprintf("Workflow: %s", greenStyle.Render("connected")), width))
-		lines = append(lines, padWidth(fmt.Sprintf("Phase:    %s", cyanStyle.Render(wf.Phase)), width))
-	} else {
-		lines = append(lines, padWidth(fmt.Sprintf("Workflow: %s", dimStyle.Render("not started")), width))
-	}
-	lines = append(lines, padWidth(sep, width))
-
 	lines = append(lines, padWidth(pinkBoldStyle.Render("Actions:"), width))
-	lines = append(lines, padWidth(fmt.Sprintf("  [%s] Shave yak", dimStyle.Render("v")), width))
-	lines = append(lines, padWidth("  Shave: implement → validate → review → PR (3 retries)", width))
 	lines = append(lines, padWidth(fmt.Sprintf("  [%s] Edit context   [%s] Full context",
 		dimStyle.Render("e"), dimStyle.Render("↲")), width))
 

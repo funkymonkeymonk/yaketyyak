@@ -4,7 +4,7 @@ A standalone Temporal workflow that shaves a single yak through the shave loop p
 
 ```
 Workflow name:     ShaveWorkflow
-Workflow ID:       yaketyyak-shave-<yak-name-slug>
+Workflow ID:       yyx-shave-<yak-name-slug>
 Task queue:        yaketyyak-tasks
 Registration:      temporal/worker.go
 Query handler:     shave_status
@@ -64,10 +64,9 @@ Returns a `ShaveState` JSON object:
 Query from the CLI:
 
 ```bash
-# Using the Temporal CLI
-tctl workflow query \
-    --workflow_id yaketyyak-shave-add-unit-tests \
-    --query_type shave_status
+temporal workflow query \
+    --workflow-id yyx-shave-add-unit-tests \
+    --type shave_status
 ```
 
 ## Signal: shave_cancel
@@ -75,9 +74,8 @@ tctl workflow query \
 Cancels the workflow at the next iteration boundary. Any in-flight activity continues to completion, but the next iteration is skipped.
 
 ```bash
-# Using the Temporal CLI
-tctl workflow signal \
-    --workflow_id yaketyyak-shave-add-unit-tests \
+temporal workflow signal \
+    --workflow-id yyx-shave-add-unit-tests \
     --name shave_cancel
 ```
 

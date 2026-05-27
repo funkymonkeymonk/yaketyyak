@@ -38,7 +38,7 @@ jobs:
   signal-temporal:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: stable
