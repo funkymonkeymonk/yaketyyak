@@ -122,7 +122,7 @@ func RunAgent(ctx context.Context, yakName, repoRoot, workspaceName string, cfg 
 	cmd.Dir = workspacePath
 	cmd.Env = piEnv(cfg)
 
-	// Stream output and heartbeat so Temporal doesn't time out.
+	// Capture output so it appears in error messages; also heartbeat during long runs.
 	pr, pw, err := os.Pipe()
 	if err != nil {
 		return fmt.Errorf("create pipe: %w", err)
@@ -137,30 +137,48 @@ func RunAgent(ctx context.Context, yakName, repoRoot, workspaceName string, cfg 
 	}
 	pw.Close()
 
-	// Drain output in background; heartbeat every 30s.
+	// Collect output and heartbeat concurrently.
+	var outputBuf strings.Builder
+	readDone := make(chan struct{})
+	go func() {
+		defer close(readDone)
+		buf := make([]byte, 4096)
+		for {
+			n, err := pr.Read(buf)
+			if n > 0 {
+				outputBuf.Write(buf[:n])
+			}
+			if err != nil {
+				break
+			}
+		}
+		pr.Close()
+	}()
+
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 
-	buf := make([]byte, 4096)
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case err := <-done:
-			pr.Close()
+			<-readDone
 			if err != nil {
-				return fmt.Errorf("pi exited with error: %w", err)
+				output := outputBuf.String()
+				if len(output) > 2000 {
+					output = output[len(output)-2000:]
+				}
+				return fmt.Errorf("pi exited with error: %w\n--- pi output ---\n%s", err, output)
 			}
 			return nil
 		case <-ticker.C:
 			activity.RecordHeartbeat(ctx, "pi running")
 		case <-ctx.Done():
 			cmd.Process.Kill()
-			pr.Close()
+			<-readDone
 			return ctx.Err()
-		default:
-			pr.Read(buf) // drain pipe to prevent blocking
 		}
 	}
 }
@@ -247,9 +265,16 @@ func writeYakContextToFile(ctx context.Context, yakName, workspacePath string) (
 		return "", fmt.Errorf("yx show %s: %w", yakName, err)
 	}
 
-	var r yakShowResult
+	var r struct {
+		Context    string `json:"context"`
+		HasContext bool   `json:"has_context"`
+	}
 	if err := json.Unmarshal(out, &r); err != nil {
 		return "", fmt.Errorf("parse yx show: %w", err)
+	}
+
+	if !r.HasContext || r.Context == "" {
+		return "", fmt.Errorf("yak %q has no context — add a spec with: yx context %s", yakName, yakName)
 	}
 
 	f, err := os.CreateTemp(workspacePath, ".yak-context-*.md")
