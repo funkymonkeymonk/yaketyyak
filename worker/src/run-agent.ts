@@ -19,14 +19,13 @@ export async function RunAgent(
   cfg: PiConfig,
 ): Promise<void> {
   const workspacePath = join(repoRoot, ".workspaces", workspaceName);
-  const model = cfg.model || DEFAULT_PI_MODEL;
+  const modelId = cfg.model || DEFAULT_PI_MODEL;
   const tools = cfg.tools?.length ? cfg.tools : DEFAULT_PI_TOOLS;
 
-  // Fetch yak context from yx and write to a temp file in the workspace.
   const contextFile = writeContextFile(yakName, workspacePath);
 
   try {
-    await runPi({ workspacePath, model, tools, skills: cfg.skills ?? [], contextFile });
+    await runPi({ workspacePath, modelId, tools, skills: cfg.skills ?? [], contextFile });
   } finally {
     try { rmSync(contextFile, { force: true }); } catch { /* ignore */ }
   }
@@ -34,15 +33,13 @@ export async function RunAgent(
 
 async function runPi(opts: {
   workspacePath: string;
-  model: string;
+  modelId: string;
   tools: string[];
   skills: string[];
   contextFile: string;
 }): Promise<void> {
-  const { workspacePath, model, tools, contextFile } = opts;
+  const { workspacePath, modelId, tools, contextFile } = opts;
 
-  // Auth: Pi picks up LITELLM_BASE_URL + LITELLM_API_KEY from environment.
-  // Use setRuntimeApiKey to inject so it doesn't touch auth.json on disk.
   const authStorage = AuthStorage.create();
   if (process.env.LITELLM_API_KEY) {
     authStorage.setRuntimeApiKey("litellm", process.env.LITELLM_API_KEY);
@@ -56,15 +53,9 @@ async function runPi(opts: {
   });
   await loader.reload();
 
-  // Resolve the LiteLLM model.
-  const resolvedModel = modelRegistry.find("litellm", model);
-  if (!resolvedModel) {
-    throw new Error(`Model not found: litellm/${model}. Check LITELLM_BASE_URL is set and the model exists.`);
-  }
-
+  // Create the session without a model — let the extension register its models first.
   const { session } = await createAgentSession({
     cwd: workspacePath,
-    model: resolvedModel,
     tools,
     authStorage,
     modelRegistry,
@@ -72,7 +63,22 @@ async function runPi(opts: {
     sessionManager: SessionManager.inMemory(workspacePath),
   });
 
-  // Stream events to logs and heartbeat on tool executions.
+  // Now resolve the model — extension has had a chance to register litellm models.
+  const available = await modelRegistry.getAvailable();
+  const resolved = available.find(
+    (m) => m.provider === "litellm" && (m.id === modelId || m.id.includes(modelId)),
+  );
+
+  if (!resolved) {
+    const ids = available.filter((m) => m.provider === "litellm").map((m) => m.id);
+    session.dispose();
+    throw new Error(
+      `LiteLLM model "${modelId}" not found. Available: ${ids.join(", ") || "(none — is LITELLM_BASE_URL set?)"}`,
+    );
+  }
+
+  await session.setModel(resolved);
+
   session.subscribe((event) => {
     switch (event.type) {
       case "message_update":
