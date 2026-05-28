@@ -6,9 +6,8 @@ import {
   setHandler,
 } from "@temporalio/workflow";
 import type * as allActivities from "./activities.js";
-import type { PiConfig, PRResult, YakWorkflowState } from "./types.js";
+import type { PiConfig, PRResult, WorkflowConfig, YakWorkflowState } from "./types.js";
 
-// Separate proxy groups with different timeout/retry settings.
 const act = proxyActivities<typeof allActivities>({
   startToCloseTimeout: "30 seconds",
   retry: { maximumAttempts: 3 },
@@ -19,10 +18,8 @@ const actNoRetry = proxyActivities<typeof allActivities>({
   retry: { maximumAttempts: 1 },
 });
 
-// RunAgent has a long timeout and is registered separately in the worker.
-// We type it loosely here to avoid importing from run-agent.ts (Node API).
 const { RunAgent } = proxyActivities<{
-  RunAgent(yakName: string, repoRoot: string, workspaceName: string, cfg: PiConfig): Promise<void>;
+  RunAgent(yakName: string, workspaceName: string, cfg: PiConfig): Promise<void>;
 }>({
   startToCloseTimeout: "4 hours",
   heartbeatTimeout: "2 minutes",
@@ -40,14 +37,12 @@ const { WatchPRMerged } = proxyActivities<typeof allActivities>({
   retry: { maximumAttempts: 1 },
 });
 
-// Signals & queries
 export const wontDoSignal = defineSignal("wont-do");
 export const yakStatusQuery = defineQuery<YakWorkflowState>("yak_status");
 
 export async function YakWorkflow(
   yakName: string,
-  repoRoot: string,
-  cfg: PiConfig,
+  cfg: WorkflowConfig,
 ): Promise<string> {
   const state: YakWorkflowState = {
     yakName,
@@ -66,14 +61,14 @@ export async function YakWorkflow(
   await act.YakClaim(yakName);
 
   try {
-    // 2. Init workspace.
+    // 2. Init workspace — fresh git clone on a new branch.
     state.phase = "init-workspace";
-    state.workspace = await actNoRetry.InitWorkspace(repoRoot, yakName);
+    state.workspace = await actNoRetry.InitWorkspace(cfg.repoUrl, yakName);
 
     try {
       // 3. Run Pi agent.
       state.phase = "implementing";
-      await RunAgent(yakName, repoRoot, state.workspace, cfg);
+      await RunAgent(yakName, state.workspace, cfg.pi);
 
       if (wontDo) {
         return `yak ${yakName} marked won't-do during implementation`;
@@ -81,7 +76,7 @@ export async function YakWorkflow(
 
       // 4. Create draft PR.
       state.phase = "creating-pr";
-      const pr: PRResult = await CreateDraftPR(repoRoot, state.workspace, yakName);
+      const pr: PRResult = await CreateDraftPR(cfg.repoUrl, state.workspace, yakName);
       state.prUrl = pr.prUrl;
       state.prNumber = pr.prNumber;
 
@@ -90,7 +85,7 @@ export async function YakWorkflow(
       // 5. Wait for merge or won't-do.
       state.phase = "waiting-for-merge";
       let merged = false;
-      WatchPRMerged(pr.prNumber, repoRoot).then((m) => { merged = m; }).catch(() => {});
+      WatchPRMerged(pr.prNumber, cfg.repoUrl).then((m) => { merged = m; }).catch(() => {});
       await condition(() => wontDo || merged);
 
       if (wontDo) {
@@ -99,7 +94,7 @@ export async function YakWorkflow(
       }
 
     } finally {
-      actNoRetry.CleanupWorkspace(repoRoot, state.workspace).catch(() => {});
+      actNoRetry.CleanupWorkspace(state.workspace).catch(() => {});
     }
 
   } catch (err) {

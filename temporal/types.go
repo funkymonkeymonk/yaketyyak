@@ -1,11 +1,16 @@
 package temporal
 
 // PiConfig holds the configuration for invoking the Pi coding agent.
-// Provider is always LiteLLM — configured via LITELLM_BASE_URL and LITELLM_API_KEY env vars.
 type PiConfig struct {
 	Model  string   // LiteLLM model name; defaults to DefaultPiModel
 	Tools  []string // e.g. ["read","bash","edit","write"]
 	Skills []string // paths to skill files loaded via --skill
+}
+
+// WorkflowConfig is passed to YakWorkflow at start time.
+type WorkflowConfig struct {
+	RepoURL string // e.g. "https://github.com/funkymonkeymonk/yaketyyak"
+	Pi      PiConfig
 }
 
 // DefaultPiTools are the tools enabled for every shave run.
@@ -13,28 +18,6 @@ var DefaultPiTools = []string{"read", "bash", "edit", "write"}
 
 // DefaultPiModel is the LiteLLM model used when no model is specified.
 const DefaultPiModel = "claude-sonnet-4-6"
-
-// PRFeedback carries review comments to feed back to the agent.
-type PRFeedback struct {
-	PRNumber int
-	Comment  string
-	Author   string
-}
-
-// YakWorkflowState is the queryable state of a running YakWorkflow.
-type YakWorkflowState struct {
-	YakName   string `json:"yak_name"`
-	Phase     string `json:"phase"`
-	Workspace string `json:"workspace"`
-	PRURL     string `json:"pr_url"`
-	PRNumber  int    `json:"pr_number"`
-}
-
-// PRResult is returned by CreateDraftPR.
-type PRResult struct {
-	PRURL    string `json:"pr_url"`
-	PRNumber int    `json:"pr_number"`
-}
 
 // YakWorkflowID returns the deterministic Temporal workflow ID for a yak.
 func YakWorkflowID(yakName string) string {

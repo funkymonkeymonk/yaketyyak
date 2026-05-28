@@ -7,6 +7,11 @@ export interface PiConfig {
   skills?: string[];
 }
 
+export interface WorkflowConfig {
+  repoUrl: string;  // e.g. "https://github.com/funkymonkeymonk/yaketyyak"
+  pi: PiConfig;
+}
+
 export interface PRResult {
   prUrl: string;
   prNumber: number;

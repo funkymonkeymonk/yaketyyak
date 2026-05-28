@@ -10,10 +10,12 @@
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "latest",
+    "@octokit/rest": "^22.0.1",
     "@temporalio/activity": "^1.11.0",
+    "@temporalio/client": "^1.11.0",
     "@temporalio/worker": "^1.11.0",
     "@temporalio/workflow": "^1.11.0",
-    "@temporalio/client": "^1.11.0"
+    "simple-git": "^3.36.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -14,10 +14,10 @@ import { DEFAULT_PI_MODEL, DEFAULT_PI_TOOLS, type PiConfig } from "./types.js";
 
 export async function RunAgent(
   yakName: string,
-  repoRoot: string,
   workspaceName: string,
   cfg: PiConfig,
 ): Promise<void> {
+  const repoRoot = process.cwd();
   const workspacePath = join(repoRoot, ".workspaces", workspaceName);
   const modelId = cfg.model || DEFAULT_PI_MODEL;
   const tools = cfg.tools?.length ? cfg.tools : DEFAULT_PI_TOOLS;
@@ -103,7 +103,7 @@ async function runPi(opts: {
 
   const prompt = [
     `@${contextFile}`,
-    "Implement this yak. Follow the spec exactly. When done, commit your changes with jj.",
+    "Implement this yak. Follow the spec exactly. When done, commit your changes with git (git add -A && git commit).",
   ].join("\n");
 
   await session.prompt(prompt);
