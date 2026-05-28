@@ -8,3 +8,4 @@ dist/
 .env.op
 .devenv/
 /yaketyyak
+.yak-context.md

@@ -11,6 +11,10 @@ type PiConfig struct {
 	Model  string   `json:"model,omitempty"`
 	Tools  []string `json:"tools,omitempty"`
 	Skills []string `json:"skills,omitempty"`
+	// MaxRunTimeSeconds caps the wall-clock time for a single agent run.
+	// The worker aborts the Pi session after this many seconds and fails the
+	// activity.  Defaults to 7200 (2 hours) when zero.
+	MaxRunTimeSeconds int `json:"maxRunTimeSeconds,omitempty"`
 }
 
 // DefaultPiTools are the tools enabled for every shave run.

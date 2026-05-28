@@ -9,6 +9,11 @@ import {
 import type * as allActivities from "./activities.js";
 import type { PiConfig, PRResult, WorkflowConfig, YakWorkflowState } from "./types.js";
 
+// Default max agent run time: 2 hours. The Temporal startToCloseTimeout is set
+// to maxRunTimeSeconds + 5 minutes so Temporal only kills the activity if the
+// in-process abort mechanism itself fails.
+const DEFAULT_MAX_RUN_TIME_SECONDS = 2 * 60 * 60;
+
 const act = proxyActivities<typeof allActivities>({
   startToCloseTimeout: "30 seconds",
   retry: { maximumAttempts: 3 },
@@ -16,14 +21,6 @@ const act = proxyActivities<typeof allActivities>({
 
 const actNoRetry = proxyActivities<typeof allActivities>({
   startToCloseTimeout: "60 seconds",
-  retry: { maximumAttempts: 1 },
-});
-
-const { RunAgent } = proxyActivities<{
-  RunAgent(yakName: string, workspaceName: string, cfg: PiConfig): Promise<void>;
-}>({
-  startToCloseTimeout: "4 hours",
-  heartbeatTimeout: "2 minutes",
   retry: { maximumAttempts: 1 },
 });
 
@@ -64,6 +61,19 @@ export async function YakWorkflow(
     state.phase = phase;
     upsertSearchAttributes({ Phase: [phase] });
   };
+
+  // Build a RunAgent proxy whose startToCloseTimeout is derived from the
+  // configured maxRunTimeSeconds (+ 5 min buffer so Temporal only fires if the
+  // in-process abort mechanism itself fails).
+  const agentMaxSecs = cfg.pi.maxRunTimeSeconds ?? DEFAULT_MAX_RUN_TIME_SECONDS;
+  const agentTimeoutSecs = agentMaxSecs + 5 * 60;
+  const { RunAgent } = proxyActivities<{
+    RunAgent(yakName: string, workspaceName: string, cfg: PiConfig): Promise<void>;
+  }>({
+    startToCloseTimeout: `${agentTimeoutSecs} seconds`,
+    heartbeatTimeout: "2 minutes",
+    retry: { maximumAttempts: 1 },
+  });
 
   // 1. Claim the yak.
   setPhase("claiming");
