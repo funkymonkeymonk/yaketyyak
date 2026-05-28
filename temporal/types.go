@@ -1,16 +1,16 @@
 package temporal
 
-// PiConfig holds the configuration for invoking the Pi coding agent.
-type PiConfig struct {
-	Model  string   // LiteLLM model name; defaults to DefaultPiModel
-	Tools  []string // e.g. ["read","bash","edit","write"]
-	Skills []string // paths to skill files loaded via --skill
-}
-
 // WorkflowConfig is passed to YakWorkflow at start time.
 type WorkflowConfig struct {
-	RepoURL string // e.g. "https://github.com/funkymonkeymonk/yaketyyak"
-	Pi      PiConfig
+	RepoURL string   `json:"repoUrl"` // e.g. "https://github.com/funkymonkeymonk/yaketyyak"
+	Pi      PiConfig `json:"pi"`
+}
+
+// PiConfig holds the configuration for invoking the Pi coding agent.
+type PiConfig struct {
+	Model  string   `json:"model,omitempty"`
+	Tools  []string `json:"tools,omitempty"`
+	Skills []string `json:"skills,omitempty"`
 }
 
 // DefaultPiTools are the tools enabled for every shave run.
