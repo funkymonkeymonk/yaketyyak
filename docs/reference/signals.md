@@ -1,92 +1,53 @@
 # Signals Reference
 
-All signals that can be sent to the `BarberWorkflow`.
+Signals that can be sent to a running `YakWorkflow`.
 
-## ci_signal
+## wont-do
 
-Sent when a CI pipeline completes.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `conclusion` | string | `"success"`, `"failure"`, or `"cancelled"` |
-| `branch` | string | Git branch that was built |
-| `sha` | string | Commit SHA |
-| `details` | string | Optional JSON with run IDs, check URLs |
+Cancels the workflow and releases the claimed yak. The yak is returned to `todo` state.
 
 ```bash
-yyx ci \
-    --conclusion failure \
-    --branch feat/foo \
-    --sha abc1234
+temporal workflow signal \
+    --workflow-id yyx-yak-<yak-name-slug> \
+    --name wont-do
 ```
 
-## g2g_signal
+Use this when a running shave should be abandoned — for example, if the yak turned out to be out of scope, or Pi is clearly going in the wrong direction.
 
-Triggers an immediate scan for yaks tagged `@g2g`.
+## Query: yak_status
 
-Parameters: none
-
-```bash
-yyx g2g-scan
-```
-
-## pr_feedback
-
-Sends a PR review comment into the rework loop.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `pr_number` | int | Pull request number |
-| `comment` | string | Review body |
-| `author` | string | Reviewer handle |
+Returns the current workflow state as a `YakWorkflowState` JSON object. Not a signal — a Temporal query (read-only).
 
 ```bash
-yyx pr-feedback \
-    --pr-number 42 \
-    --comment "Fix the lint warning" \
-    --author reviewer
-```
-
-## pause
-
-Pauses the workflow. All incoming signals are queued and processed on resume.
-
-```bash
-yyx pause
-```
-
-## resume
-
-Resumes a paused workflow.
-
-```bash
-yyx resume
-```
-
-## Query: status
-
-Returns the current workflow state. Not a signal — a Temporal query (read-only).
-
-```bash
-yyx status
+temporal workflow query \
+    --workflow-id yyx-yak-<yak-name-slug> \
+    --type yak_status
 ```
 
 Output:
 
 ```json
 {
+  "yakName": "update documentation to reflect current architecture",
   "phase": "implementing",
-  "current_yak": {
-    "name": "Add unit tests for payment module",
-    "state": "wip",
-    "g2g": true,
-    "pr_number": 42,
-    "pr_url": "https://github.com/owner/repo/pull/42"
-  },
-  "completed_yaks": 1,
-  "failed_yaks": 0
+  "workspace": "shave-update-documentation-to-reflect-current-architecture-7yf2",
+  "prUrl": "",
+  "prNumber": 0
 }
 ```
 
-> For how to send signals in CI, see [Integrate with GitHub Actions](../how-to/integrate-github-actions.md).
-> For agent dispatch details, see [Activities Reference](activities.md).
+---
+
+## Not yet implemented
+
+The following signals are planned but not yet implemented.
+
+| Signal | Planned purpose |
+|--------|----------------|
+| `ci_signal` | Notify the workflow of a CI pipeline result |
+| `pr_feedback` | Send PR review comments back to the agent |
+| `pause` | Pause the workflow; queue incoming signals |
+| `resume` | Resume a paused workflow |
+
+> For the workflow definition, see [YakWorkflow Reference](yak-workflow.md).
+> For activity details, see [Activities Reference](activities.md).

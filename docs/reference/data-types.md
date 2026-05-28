@@ -1,66 +1,74 @@
 # Data Types Reference
 
-Core data types used by the `BarberWorkflow`.
+Core data types used by `YakWorkflow`.
 
-## CISignal
+## PiConfig
 
-Carries CI pipeline completion data.
+Configuration for invoking the Pi coding agent. The provider is always LiteLLM, configured via `LITELLM_BASE_URL` and `LITELLM_API_KEY` environment variables in the worker process.
 
-```go
-type CISignal struct {
-    Conclusion string // "success" | "failure" | "cancelled"
-    Branch     string // git branch
-    SHA        string // commit SHA
-    Details    string // optional JSON with run metadata
+TypeScript (worker):
+```typescript
+interface PiConfig {
+  model?: string;   // LiteLLM model name; uses default if empty
+  tools?: string[]; // e.g. ["read", "bash", "edit", "write"]
+  skills?: string[]; // paths to skill files
 }
 ```
 
-## PRFeedback
-
-Carries a PR review comment for the rework loop.
-
+Go (CLI):
 ```go
-type PRFeedback struct {
-    PRNumber int    // GitHub PR number
-    Comment  string // review body
-    Author   string // reviewer handle
+type PiConfig struct {
+    Model  string   `json:"model,omitempty"`
+    Tools  []string `json:"tools,omitempty"`
+    Skills []string `json:"skills,omitempty"`
 }
 ```
 
-## YakInfo
+### Defaults
 
-Tracks the currently active yak.
+```typescript
+const DEFAULT_PI_TOOLS = ["read", "bash", "edit", "write"];
+const DEFAULT_PI_MODEL = "claude-sonnet-4-6";
+```
 
-```go
-type YakInfo struct {
-    Name     string
-    State    string   // "todo" | "wip" | "done"
-    Context  string   // yak context markdown
-    Tags     []string // yak tags (e.g. ["@g2g"])
-    PRNumber int
-    PRURL    string
-    G2G      bool     // was this g2g-triggered?
+`DEFAULT_PI_MODEL` is used when no `--pi-model` flag is provided. `DEFAULT_PI_TOOLS` are the tools enabled for every shave run unless overridden with `--pi-tools`.
+
+## YakWorkflowState
+
+The queryable state of a running `YakWorkflow`. Accessible via the `yak_status` Temporal query.
+
+```typescript
+interface YakWorkflowState {
+  yakName: string;
+  phase: string;
+  workspace: string;
+  prUrl: string;
+  prNumber: number;
 }
 ```
 
-## WorkflowState
+### Phase values
 
-Full workflow state accessible via the `status()` query.
+| Phase | Description |
+|-------|-------------|
+| `init` | Workflow just started |
+| `claiming` | Running `yx start` to claim the yak |
+| `init-workspace` | Cloning repo into isolated workspace |
+| `implementing` | Pi agent is running |
+| `creating-pr` | Pushing branch and opening draft PR |
+| `waiting-for-merge` | Polling GitHub API for PR merge |
+| `done` | PR merged, yak marked done |
 
-```go
-type WorkflowState struct {
-    Phase             string   // "idle" | "triaging" | "claiming" | "implementing" | "watching-ci" | "reviewing"
-    CurrentYak        *YakInfo
-    PendingCISignals  []CISignal
-    PendingPRFeedback []PRFeedback
-    PendingG2GScans   int
-    CompletedYaks     int
-    FailedYaks        int
-    Repo              string
-    RepoRoot          string
-    G2GMode           bool
+## PRResult
+
+Returned by the `CreateDraftPR` activity.
+
+```typescript
+interface PRResult {
+  prUrl: string;
+  prNumber: number;
 }
 ```
 
-> For signal payloads, see [Signals Reference](signals.md).
-> For the full workflow definition, see `temporal/workflow.go`.
+> For signal definitions, see [Signals Reference](signals.md).
+> For workflow flags that configure PiConfig, see [Workflow Options](workflow-options.md).

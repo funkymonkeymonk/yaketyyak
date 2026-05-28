@@ -2,16 +2,10 @@
 
 Autonomous yak shaving, end to end.
 
-yaketyyak runs a durable Temporal workflow that claims a yak, dispatches a coding agent (Pi, Codex, Claude Code, or OpenCode) to implement it, opens a PR, handles review feedback, merges, and marks the yak done — all without human intervention. It survives crashes and reboots.
-
-CI signals are one way the workflow is nudged forward: when a build breaks during shaving, the CI result resumes the workflow so the agent can fix it. A `@g2g` tag and PR review feedback do the same.
+yaketyyak runs a durable Temporal workflow that claims a yak, dispatches the Pi coding agent via LiteLLM to implement it, opens a draft PR, then waits for the PR to be merged and marks the yak done — all without human intervention. It survives crashes and reboots.
 
 ```
-Yak claimed ──────────────────→ implement → PR → merge → done
-                                    ↑
-CI finished ──┐                     │ (resume after interruption)
-Yak tagged @g2g ─┤─────────────────┘
-PR feedback ───┘
+Yak claimed ──────────────────→ implement → draft PR → merged → done
 ```
 
 ## Prerequisites
@@ -20,6 +14,7 @@ PR feedback ───┘
 - [direnv](https://direnv.net) (recommended) — auto-loads the dev environment on `cd`
 - A GitHub [personal access token](https://github.com/settings/tokens) with `repo` scope
 - The [yx CLI](https://github.com/mattwynne/yaks) installed and connected to your repository
+- `LITELLM_BASE_URL` and `LITELLM_API_KEY` set in the worker environment
 
 ## Quick start
 
@@ -27,26 +22,29 @@ PR feedback ───┘
 git clone https://github.com/funkymonkeymonk/yaketyyak
 cd yaketyyak
 direnv allow                          # activates devenv with Go + Temporal CLI
-devenv task project:setup             # build the yyx CLI
+devenv tasks run yyx:install          # build the yyx CLI
 GITHUB_TOKEN=ghp_xxx devenv up        # start Temporal dev server + worker
-yyx start --repo your-name/your-repo --repo-root .  # start workflow
+yyx shave <yak-name> --repo-url https://github.com/owner/repo
 ```
 
 > For a full step-by-step walkthrough, see the [tutorial](docs/tutorials/from-zero-to-shaving.md).
 
-## Using with your own fork
+## How it works
 
-To develop yaketyyak or test changes against your own fork:
+1. `yyx shave <yak-name>` starts a `YakWorkflow` on the Temporal task queue
+2. The worker claims the yak with `yx start`, clones the repo into an isolated workspace, and dispatches Pi via LiteLLM
+3. Pi implements the yak and commits in the workspace
+4. The workflow opens a draft PR and waits for it to be merged
+5. On merge, the workflow marks the yak done with `yx done` and cleans up the workspace
 
-```bash
-git clone https://github.com/your-name/yaketyyak
-cd yaketyyak
-git remote add upstream https://github.com/funkymonkeymonk/yaketyyak
-direnv allow
-go build -o yyx .
-```
+## Features
 
-The `yyx` binary you just built will point the worker at your fork. See the [Workflow Options](docs/reference/workflow-options.md) for `--repo` and `--repo-root` flags.
+- **Single command to shave:** `yyx shave <yak-name> --repo-url <url>`
+- **Durable:** Temporal workflows survive crashes and reboots mid-run
+- **Pi via LiteLLM:** One agent, fully configurable model and tools
+- **Isolated workspaces:** Each shave clones to `.workspaces/shave-<slug>/`
+- **Draft PR lifecycle:** Opens a draft PR, waits for human review and merge
+- **`wont-do` signal:** Cancel a running shave by signalling the workflow
 
 ## Quick links
 
@@ -54,5 +52,5 @@ The `yyx` binary you just built will point the worker at your fork. See the [Wor
 |--------|---------|
 | Learning by doing | [Tutorials](docs/tutorials/from-zero-to-shaving.md) |
 | Accomplishing a task | [How-to guides](docs/how-to/start-the-workflow.md) |
-| API details & options | [Reference](docs/reference/signals.md) |
+| API details & options | [Reference](docs/reference/yak-workflow.md) |
 | Background & design | [Explanation](docs/explanation/architecture.md) |
