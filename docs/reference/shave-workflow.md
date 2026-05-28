@@ -1,3 +1,5 @@
+> **This document is superseded.** The workflow described here (`ShaveWorkflow`) does not exist in the current codebase. See [YakWorkflow Reference](yak-workflow.md) for the real workflow.
+
 # ShaveWorkflow Reference
 
 A standalone Temporal workflow that shaves a single yak through the shave loop pattern: implement → validate → adversarial review → create PR → merge.

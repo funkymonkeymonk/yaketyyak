@@ -1,3 +1,5 @@
+> **This feature is not yet implemented.** This document describes planned behaviour.
+
 # Shave Activities Reference
 
 Activities used exclusively by the `ShaveWorkflow`. For shared activities like `YakClaim`, `WatchPRCI`, `MergePR`, see the [main Activities Reference](activities.md).

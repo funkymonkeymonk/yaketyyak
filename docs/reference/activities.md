@@ -1,92 +1,87 @@
 # Activities Reference
 
-All Temporal activities used by the `BarberWorkflow`.
+All Temporal activities used by `YakWorkflow`.
 
-## yx_sync
+## YakClaim
 
-Runs `yx sync` to pull the latest yak state from shared git refs.
+Claims the yak using `yx start` and syncs state with `yx sync`.
 
-Retry: 3 attempts, 30s timeout
+- Input: `yakName string`
+- Timeout: 30s
+- Retry: 3 attempts
 
-## yak_triage_g2g
+## YakRelease
 
-Finds yaks in `todo` state tagged with `@g2g`. Parses `yx ls --format json` output.
+Releases a claimed yak (marks it back to `todo`) if the workflow cannot proceed. Uses `yx sync` after release.
 
-Returns: list of `{name, tags, g2g}`
+- Input: `yakName string`
+- Timeout: 30s
+- Retry: 3 attempts
 
-Retry: 2 attempts, 30s timeout
+## YakMarkDone
 
-## yak_triage
+Marks the yak as done using `yx done` and syncs with `yx sync`.
 
-Fallback triage when no `@g2g` yaks exist. Delegates to `yak-triage.sh` from the shave-yaks skill, or falls back to `yx ls --format json`.
+- Input: `yakName string`
+- Timeout: 30s
+- Retry: 3 attempts
 
-Returns: list of `{name}`
+## WritePRToYak
 
-Retry: 3 attempts, 30s timeout
+Writes the PR URL and number into the yak's context field so it is visible in `yx show`.
 
-## yak_claim
+- Input: `yakName string`, `prURL string`, `prNumber int`
+- Timeout: 30s
+- Retry: 3 attempts
 
-Safely claims a yak using `yak-claim.sh` from the shave-yaks skill. Falls back to direct `yx start` + `yx sync`.
+## InitWorkspace
 
-Returns: `{name, state, claimed: bool}`
+Creates an isolated jj workspace for the yak under `.workspaces/`.
 
-Retry: 3 attempts, 30s timeout
+Runs:
+1. `jj git fetch` — pull latest from remote
+2. `jj workspace add --name shave-<slug> .workspaces/shave-<slug>`
 
-## yak_remove_g2g_tag
+- Input: `repoRoot string`, `yakName string`
+- Returns: workspace path string (e.g. `.workspaces/shave-update-docs`)
+- Timeout: 60s
+- Retry: 2 attempts
 
-Removes the `@g2g` tag from a yak after successful claim. Prevents double-claiming.
+## CleanupWorkspace
 
-Retry: none, 15s timeout
+Removes the isolated jj workspace with `jj workspace forget`.
 
-## dispatch_agent
+- Input: `repoRoot string`, `workspacePath string`
+- Timeout: 30s
+- Retry: 2 attempts
 
-Dispatches an AI coding agent to implement a yak.
+## RunAgent
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `yak_name` | string | Name of the yak |
-| `agent_type` | string | `pi`, `claude-code`, `codex`, or `opencode` |
-| `repo_root` | string | Absolute path to repo |
-| `g2g` | bool | Whether this was a g2g-triggered yak |
+Dispatches Pi via LiteLLM to implement the yak in the workspace. Pi receives the yak context as its prompt.
 
-The activity generates a prompt from the yak's context and pipes it to the agent CLI. It expects a JSON line in the output with `pr_number`, `pr_url`, and `branch`.
+- Input: `PiConfig`, `yakName string`, `workspacePath string`
+- Timeout: 2h
+- Retry: 1 attempt (no automatic retry — agent failures are surfaced to the workflow)
 
-Retry: 2 attempts, 2h timeout
+See [PiConfig](data-types.md#piconfig) for agent configuration.
 
-## watch_pr_ci
+## CreateDraftPR
 
-Polls GitHub checks on a PR until all complete. Returns `"success"` or `"failure"`.
+Pushes the workspace branch to GitHub and opens a draft PR using `gh pr create --draft`.
 
-Poll interval: 30s
+- Input: `repoRoot string`, `workspacePath string`
+- Returns: [`PRResult`](data-types.md#prresult)
+- Timeout: 5m
+- Retry: 2 attempts
 
-Retry: 1 attempt (no retry — relies on next signal), 4h timeout
+## WatchPRMerged
 
-## merge_pr
+Polls the GitHub API until the PR is merged or closed. Returns `"merged"` or `"closed"`.
 
-Merges a passing PR using `gh pr merge --squash --delete-branch`.
+- Input: `prNumber int`
+- Poll interval: 30s
+- Timeout: 168h (7 days)
+- Retry: 1 attempt
 
-Retry: 3 attempts, 5m timeout
-
-## yak_mark_done
-
-Marks a yak as done with `yx done` and syncs.
-
-Retry: none, 30s timeout
-
-## yak_mark_refinement
-
-Tags a yak as `@needs-human` when it lacks sufficient context for autonomous implementation.
-
-Retry: none, 30s timeout
-
-## _check_refinement
-
-Checks if a yak has enough context to implement autonomously. Delegates to `yak-needs-refinement.sh` from the shave-yaks skill.
-
-Returns: `None` if clear, or a string reason if needs refinement.
-
-Retry: none, 30s timeout
-
+> For the workflow that orchestrates these activities, see [YakWorkflow Reference](yak-workflow.md).
 > For signal definitions, see [Signals Reference](signals.md).
-> For workflow parameters, see [Workflow Options](workflow-options.md).
-> For shave loop activities, see [Shave Activities Reference](shave-activities.md).

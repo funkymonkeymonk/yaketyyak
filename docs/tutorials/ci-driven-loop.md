@@ -1,3 +1,5 @@
+> **This feature is not yet implemented.** This document describes planned behaviour.
+
 # Tutorial: CI-Driven Yak Shaving Loop
 
 In this tutorial you will learn how yaketyyak reacts to CI events by connecting it to a GitHub Actions pipeline and watching the autonomous loop in action.

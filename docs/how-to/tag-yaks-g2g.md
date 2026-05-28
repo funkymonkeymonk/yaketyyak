@@ -1,3 +1,5 @@
+> **This feature is not yet implemented.** This document describes planned behaviour.
+
 # How to Mark a Yak as Good to Go
 
 The `@g2g` tag tells yaketyyak that a yak is ready for autonomous implementation.

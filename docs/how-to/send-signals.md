@@ -1,3 +1,5 @@
+> **This feature is not yet implemented.** This document describes planned behaviour.
+
 # How to Send Signals to the Workflow
 
 yaketyyak uses Temporal signals to communicate with the running workflow. Each signal triggers a specific behavior.

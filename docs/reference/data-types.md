@@ -1,66 +1,64 @@
 # Data Types Reference
 
-Core data types used by the `BarberWorkflow`.
+Core data types used by `YakWorkflow`.
 
-## CISignal
+## PiConfig
 
-Carries CI pipeline completion data.
+Configuration for invoking the Pi coding agent. The provider is always LiteLLM, configured via `LITELLM_BASE_URL` and `LITELLM_API_KEY` environment variables in the worker process.
 
 ```go
-type CISignal struct {
-    Conclusion string // "success" | "failure" | "cancelled"
-    Branch     string // git branch
-    SHA        string // commit SHA
-    Details    string // optional JSON with run metadata
+type PiConfig struct {
+    Model  string   // LiteLLM model name; uses gateway default if empty
+    Tools  []string // e.g. ["read", "bash", "edit", "write"]
+    Skills []string // paths to skill files loaded via --skill
 }
 ```
 
-## PRFeedback
-
-Carries a PR review comment for the rework loop.
+### Defaults
 
 ```go
-type PRFeedback struct {
-    PRNumber int    // GitHub PR number
-    Comment  string // review body
-    Author   string // reviewer handle
+var DefaultPiTools = []string{"read", "bash", "edit", "write"}
+const DefaultPiModel = "claude-sonnet-4-6"
+```
+
+`DefaultPiModel` is used when no `--pi-model` flag is provided. `DefaultPiTools` are the tools enabled for every shave run unless overridden with `--pi-tools`.
+
+## YakWorkflowState
+
+The queryable state of a running `YakWorkflow`. Accessible via a Temporal query.
+
+```go
+type YakWorkflowState struct {
+    YakName   string `json:"yak_name"`
+    Phase     string `json:"phase"`
+    Workspace string `json:"workspace"`
+    PRURL     string `json:"pr_url"`
+    PRNumber  int    `json:"pr_number"`
 }
 ```
 
-## YakInfo
+### Phase values
 
-Tracks the currently active yak.
+| Phase | Description |
+|-------|-------------|
+| `claiming` | Running `yx start` to claim the yak |
+| `init-workspace` | Creating the jj workspace |
+| `implementing` | Pi agent is running |
+| `creating-pr` | Pushing branch and opening draft PR |
+| `watching-pr` | Polling for the PR to be merged |
+| `done` | PR merged, yak marked done |
+| `failed` | Unrecoverable error; yak released |
 
-```go
-type YakInfo struct {
-    Name     string
-    State    string   // "todo" | "wip" | "done"
-    Context  string   // yak context markdown
-    Tags     []string // yak tags (e.g. ["@g2g"])
-    PRNumber int
-    PRURL    string
-    G2G      bool     // was this g2g-triggered?
-}
-```
+## PRResult
 
-## WorkflowState
-
-Full workflow state accessible via the `status()` query.
+Returned by the `CreateDraftPR` activity.
 
 ```go
-type WorkflowState struct {
-    Phase             string   // "idle" | "triaging" | "claiming" | "implementing" | "watching-ci" | "reviewing"
-    CurrentYak        *YakInfo
-    PendingCISignals  []CISignal
-    PendingPRFeedback []PRFeedback
-    PendingG2GScans   int
-    CompletedYaks     int
-    FailedYaks        int
-    Repo              string
-    RepoRoot          string
-    G2GMode           bool
+type PRResult struct {
+    PRURL    string `json:"pr_url"`
+    PRNumber int    `json:"pr_number"`
 }
 ```
 
 > For signal payloads, see [Signals Reference](signals.md).
-> For the full workflow definition, see `temporal/workflow.go`.
+> For workflow flags that configure PiConfig, see [Workflow Options](workflow-options.md).

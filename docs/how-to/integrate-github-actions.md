@@ -1,3 +1,5 @@
+> **This feature is not yet implemented.** This document describes planned behaviour.
+
 # How to Integrate with GitHub Actions
 
 Connect your CI pipeline to yaketyyak so every build completion triggers a yak shaving turn.

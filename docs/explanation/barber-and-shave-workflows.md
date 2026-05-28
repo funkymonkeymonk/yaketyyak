@@ -1,3 +1,5 @@
+> **This feature is not yet implemented.** This document describes planned behaviour.
+
 # Barber and Shave Workflows
 
 Why yaketyyak has two shaving workflows, and why one of them reviews code with a second, independent agent.
