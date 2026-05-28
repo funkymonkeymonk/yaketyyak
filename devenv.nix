@@ -32,6 +32,18 @@ in
     };
 
     # Single worker — handles both workflow orchestration and activity execution.
+    temporal-setup = {
+      exec = ''
+        temporal operator search-attribute create --name PrUrl --type Text
+        temporal operator search-attribute create --name YakName --type Text
+        temporal operator search-attribute create --name Phase --type Text
+      '';
+      process-compose = {
+        availability.restart = "no";
+        depends_on."temporal-dev-server".condition = "process_healthy";
+      };
+    };
+
     worker = {
       exec = ''
         cd ${projectRoot}/worker && npm ci --silent && npm run build
@@ -39,7 +51,10 @@ in
       '';
       process-compose = {
         availability.restart = "on_failure";
-        depends_on."temporal-dev-server".condition = "process_healthy";
+        depends_on = {
+          "temporal-dev-server".condition = "process_healthy";
+          "temporal-setup".condition = "process_completed_successfully";
+        };
       };
     };
   };

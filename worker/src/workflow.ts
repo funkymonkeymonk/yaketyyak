@@ -4,6 +4,7 @@ import {
   defineSignal,
   proxyActivities,
   setHandler,
+  upsertSearchAttributes,
 } from "@temporalio/workflow";
 import type * as allActivities from "./activities.js";
 import type { PiConfig, PRResult, WorkflowConfig, YakWorkflowState } from "./types.js";
@@ -56,18 +57,26 @@ export async function YakWorkflow(
   setHandler(wontDoSignal, () => { wontDo = true; });
   setHandler(yakStatusQuery, () => ({ ...state }));
 
+  // Set initial search attributes so the workflow is findable by yak name.
+  upsertSearchAttributes({ YakName: [yakName], Phase: [state.phase] });
+
+  const setPhase = (phase: string) => {
+    state.phase = phase;
+    upsertSearchAttributes({ Phase: [phase] });
+  };
+
   // 1. Claim the yak.
-  state.phase = "claiming";
+  setPhase("claiming");
   await act.YakClaim(yakName);
 
   try {
     // 2. Init workspace — fresh git clone on a new branch.
-    state.phase = "init-workspace";
+    setPhase("init-workspace");
     state.workspace = await actNoRetry.InitWorkspace(cfg.repoUrl, yakName);
 
     try {
       // 3. Run Pi agent.
-      state.phase = "implementing";
+      setPhase("implementing");
       await RunAgent(yakName, state.workspace, cfg.pi);
 
       if (wontDo) {
@@ -75,15 +84,16 @@ export async function YakWorkflow(
       }
 
       // 4. Create draft PR.
-      state.phase = "creating-pr";
+      setPhase("creating-pr");
       const pr: PRResult = await CreateDraftPR(cfg.repoUrl, state.workspace, yakName);
       state.prUrl = pr.prUrl;
       state.prNumber = pr.prNumber;
+      upsertSearchAttributes({ PrUrl: [pr.prUrl] });
 
       act.WritePRToYak(yakName, pr.prUrl).catch(() => {});
 
       // 5. Wait for merge or won't-do.
-      state.phase = "waiting-for-merge";
+      setPhase("waiting-for-merge");
       let merged = false;
       WatchPRMerged(pr.prNumber, cfg.repoUrl).then((m) => { merged = m; }).catch(() => {});
       await condition(() => wontDo || merged);
@@ -105,7 +115,7 @@ export async function YakWorkflow(
   }
 
   // 6. Close the yak.
-  state.phase = "done";
+  setPhase("done");
   await act.YakMarkDone(yakName);
 
   return `yak ${yakName} done (PR ${state.prUrl})`;
