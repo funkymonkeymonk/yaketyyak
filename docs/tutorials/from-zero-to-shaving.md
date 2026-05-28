@@ -99,24 +99,25 @@ yx sync
 ## Step 6: Start the YakWorkflow
 
 ```bash
-yyx shave "Add unit tests for the payment module" \
-    --repo-url https://github.com/your-name/your-repo
+cd /path/to/yaketyyak
+yyx shave add-unit-tests-for-the-payment-module \
+    --repo-root /path/to/your/repo
 ```
 
 Output:
 
 ```
-Started YakWorkflow for "Add unit tests for the payment module"
+Started YakWorkflow for "add-unit-tests-for-the-payment-module"
   Workflow ID: yyx-yak-add-unit-tests-for-the-payment-module
   Run ID:      <temporal-run-id>
-  Repo URL:    https://github.com/your-name/your-repo
+  Repo root:   /path/to/your/repo
 ```
 
 The workflow is now running. It will:
 1. Claim the yak with `yx start`
-2. Clone the repo into an isolated workspace under `.workspaces/`
+2. Create an isolated jj workspace under `.workspaces/`
 3. Dispatch Pi via LiteLLM to implement the yak
-4. Open a draft PR
+4. Open a draft PR with `gh pr create --draft`
 5. Wait for you to review and merge the PR
 
 ## Step 7: Monitor progress
@@ -126,10 +127,10 @@ Check the workflow status in the Temporal Web UI at `http://localhost:8233`, or 
 ```bash
 temporal workflow query \
     --workflow-id yyx-yak-add-unit-tests-for-the-payment-module \
-    --type yak_status
+    --type YakWorkflowState
 ```
 
-You'll see the current phase (`claiming`, `implementing`, `waiting-for-merge`, etc.).
+You'll see the current phase (`claiming`, `implementing`, `watching-pr`, etc.).
 
 ## Step 8: Review and merge the PR
 
@@ -148,27 +149,14 @@ yx ls --all | grep "payment module"
 
 The yak should show state `done`.
 
-## Step 9: Cancel a shave (optional)
-
-If you want to abandon a running shave, send the `wont-do` signal:
-
-```bash
-temporal workflow signal \
-    --workflow-id yyx-yak-add-unit-tests-for-the-payment-module \
-    --name wont-do
-```
-
-The workflow releases the yak (returns it to `todo`) and stops.
-
 ## What you learned
 
 - How to set up the yaketyyak dev environment with devenv
 - How to build the `yyx` CLI with `devenv tasks run yyx:install`
 - How to start all processes (Temporal dev server + worker) with `devenv up`
 - How to create a yak with context and start a `YakWorkflow` with `yyx shave`
-- How to monitor workflow progress via the Temporal Web UI or `yak_status` query
+- How to monitor workflow progress via the Temporal Web UI or query
 - How the workflow handles the full cycle from claim to merge
-- How to cancel a running shave with the `wont-do` signal
 
 > For a deeper understanding of the architecture, see [Architecture](../explanation/architecture.md).
 > For all workflow flags, see [Workflow Options](../reference/workflow-options.md).

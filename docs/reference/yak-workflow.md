@@ -13,23 +13,26 @@ Task queue:     yaketyyak-tasks
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `yakName` | string | yes | — | Name of the yak to shave |
-| `cfg` | WorkflowConfig | yes | — | Repo URL and Pi agent configuration |
+| `repoRoot` | string | yes | — | Absolute path to local checkout |
+| `cfg` | PiConfig | yes | — | Pi agent configuration (model, tools, skills) |
 
-`cfg.repoUrl` is the GitHub repository URL (e.g. `https://github.com/owner/repo`). See [PiConfig](data-types.md#piconfig) for agent configuration details.
+`repoRoot` defaults to the current directory when `yyx shave` is invoked without `--repo-root`.
+
+See [PiConfig](data-types.md#piconfig) for agent configuration details.
 
 ## Phases
 
-The workflow progresses through these phases, visible via the `yak_status` query:
+The workflow progresses through these phases, visible via the `YakWorkflowState` query:
 
 | Phase | Description |
 |-------|-------------|
-| `init` | Workflow just started |
 | `claiming` | Running `yx start` to claim the yak |
-| `init-workspace` | Cloning repo into isolated workspace under `.workspaces/` |
+| `init-workspace` | Creating isolated jj workspace under `.workspaces/` |
 | `implementing` | Pi agent is running in the workspace |
 | `creating-pr` | Pushing branch and opening draft PR |
-| `waiting-for-merge` | Polling GitHub API for PR merge |
+| `watching-pr` | Polling for the PR to be merged or closed |
 | `done` | PR merged, yak marked done with `yx done` |
+| `failed` | Unrecoverable error; yak released |
 
 ## Activity sequence
 
@@ -38,25 +41,25 @@ YakClaim
   └─ InitWorkspace
        └─ RunAgent
             └─ CreateDraftPR
-                 └─ WritePRToYak (fire-and-forget)
+                 └─ WritePRToYak
                       └─ WatchPRMerged
                            └─ YakMarkDone
-                                └─ CleanupWorkspace (deferred)
+                                └─ CleanupWorkspace
 ```
 
 On any unrecoverable failure: `YakRelease` + `CleanupWorkspace`.
 
-## Query: yak_status
+## Query: YakWorkflowState
 
 Returns the current workflow state as `YakWorkflowState` JSON:
 
 ```json
 {
-  "yakName": "update documentation to reflect current architecture",
+  "yak_name": "update documentation to reflect current architecture",
   "phase": "implementing",
-  "workspace": "shave-update-documentation-to-reflect-current-architecture-7yf2",
-  "prUrl": "",
-  "prNumber": 0
+  "workspace": ".workspaces/shave-update-documentation-to-reflect-current-architecture",
+  "pr_url": "",
+  "pr_number": 0
 }
 ```
 
@@ -65,12 +68,12 @@ Query via Temporal CLI:
 ```bash
 temporal workflow query \
     --workflow-id yyx-yak-update-documentation \
-    --type yak_status
+    --type YakWorkflowState
 ```
 
 ## Signal: wont-do
 
-Cancels the workflow at the next activity boundary. The yak is released (returned to `todo`).
+Cancels the workflow at the next activity boundary. The yak is released (returned to `todo`) and tagged `@needs-human`.
 
 ```bash
 temporal workflow signal \
@@ -91,27 +94,13 @@ temporal workflow signal \
 
 ## Workspace naming
 
-The workspace name is derived from the yak name by lower-casing and replacing non-alphanumeric characters with hyphens:
+The workspace path is derived from the yak name:
 
 ```
-shave-<yak-name-slug>
+.workspaces/shave-<yak-name-slug>
 ```
 
-For example, yak `update docs` → `shave-update-docs`.
-
-The full path on disk is `.workspaces/shave-<slug>` relative to the worker's working directory.
-
-## Workflow ID
-
-The workflow ID is deterministic, derived from the yak name:
-
-```
-yyx-yak-<sanitized-yak-name>
-```
-
-For example, yak `update docs` → `yyx-yak-update-docs`.
-
-This means only one `YakWorkflow` can run per yak at a time — attempting to start a second workflow for the same yak will fail with a workflow already exists error.
+For example, yak `update docs` → `.workspaces/shave-update-docs`.
 
 > For the individual activities, see [Activities Reference](activities.md).
 > For the data types, see [Data Types Reference](data-types.md).

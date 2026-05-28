@@ -6,86 +6,81 @@ All Temporal activities used by `YakWorkflow`.
 
 Claims the yak using `yx start` and syncs state with `yx sync`.
 
-- Input: `yakName: string`
+- Input: `yakName string`
 - Timeout: 30s
 - Retry: 3 attempts
 
 ## YakRelease
 
-Releases a claimed yak (marks it back to `todo`) if the workflow cannot proceed. Runs `yx sync` after release.
+Releases a claimed yak (marks it back to `todo`) if the workflow cannot proceed. Uses `yx sync` after release.
 
-- Input: `yakName: string`, `reason: string`
-- Timeout: 60s
-- Retry: 1 attempt
+- Input: `yakName string`
+- Timeout: 30s
+- Retry: 3 attempts
 
 ## YakMarkDone
 
 Marks the yak as done using `yx done` and syncs with `yx sync`.
 
-- Input: `yakName: string`
+- Input: `yakName string`
 - Timeout: 30s
 - Retry: 3 attempts
 
 ## WritePRToYak
 
-Writes the PR URL into the yak's custom field so it is visible in `yx show`.
+Writes the PR URL and number into the yak's context field so it is visible in `yx show`.
 
-- Input: `yakName: string`, `prUrl: string`
+- Input: `yakName string`, `prURL string`, `prNumber int`
 - Timeout: 30s
 - Retry: 3 attempts
 
 ## InitWorkspace
 
-Clones the repository into an isolated workspace directory under `.workspaces/` and creates a new branch for the shave.
+Creates an isolated jj workspace for the yak under `.workspaces/`.
 
 Runs:
-1. `rmSync` — remove any stale workspace from a previous run
-2. `git clone --depth 1 <authenticated-url> .workspaces/shave-<slug>`
-3. `git checkout -b shave/<slug>`
-4. Sets `user.email` and `user.name` for commits in the workspace
+1. `jj git fetch` — pull latest from remote
+2. `jj workspace add --name shave-<slug> .workspaces/shave-<slug>`
 
-- Input: `repoUrl: string`, `yakName: string`
-- Returns: workspace name string (e.g. `"shave-update-docs"`)
+- Input: `repoRoot string`, `yakName string`
+- Returns: workspace path string (e.g. `.workspaces/shave-update-docs`)
 - Timeout: 60s
-- Retry: 1 attempt
+- Retry: 2 attempts
 
 ## CleanupWorkspace
 
-Removes the isolated workspace directory with `rmSync`.
+Removes the isolated jj workspace with `jj workspace forget`.
 
-- Input: `workspaceName: string`
-- Timeout: 60s
-- Retry: 1 attempt
+- Input: `repoRoot string`, `workspacePath string`
+- Timeout: 30s
+- Retry: 2 attempts
 
 ## RunAgent
 
-Dispatches Pi via LiteLLM to implement the yak in the workspace. Reads the yak context with `yx show --format json`, writes it to `.yak-context.md` inside the workspace, and prompts Pi to implement it and commit.
+Dispatches Pi via LiteLLM to implement the yak in the workspace. Pi receives the yak context as its prompt.
 
-- Input: `yakName: string`, `workspaceName: string`, `cfg: PiConfig`
-- Timeout: 4h
-- Heartbeat timeout: 2 minutes
-- Retry: 1 attempt (no automatic retry — agent failures surface to the workflow)
+- Input: `PiConfig`, `yakName string`, `workspacePath string`
+- Timeout: 2h
+- Retry: 1 attempt (no automatic retry — agent failures are surfaced to the workflow)
 
 See [PiConfig](data-types.md#piconfig) for agent configuration.
 
 ## CreateDraftPR
 
-Pushes the workspace branch to GitHub and opens a draft PR using the Octokit REST API.
+Pushes the workspace branch to GitHub and opens a draft PR using `gh pr create --draft`.
 
-- Input: `repoUrl: string`, `workspaceName: string`, `yakName: string`
+- Input: `repoRoot string`, `workspacePath string`
 - Returns: [`PRResult`](data-types.md#prresult)
 - Timeout: 5m
-- Retry: 1 attempt
+- Retry: 2 attempts
 
 ## WatchPRMerged
 
-Polls the GitHub API every 60 seconds until the PR is merged or closed without merging. Returns `true` if merged, `false` if closed without merge.
+Polls the GitHub API until the PR is merged or closed. Returns `"merged"` or `"closed"`.
 
-- Input: `prNumber: number`, `repoUrl: string`
-- Returns: `boolean`
-- Poll interval: 60s
+- Input: `prNumber int`
+- Poll interval: 30s
 - Timeout: 168h (7 days)
-- Heartbeat timeout: 2 minutes
 - Retry: 1 attempt
 
 > For the workflow that orchestrates these activities, see [YakWorkflow Reference](yak-workflow.md).

@@ -8,3 +8,4 @@ dist/
 .workspaces/
 .env.op
 /yaketyyak
+.yak-context.md
