@@ -1,67 +1,33 @@
+> **This feature is not yet implemented.** This document describes planned behaviour.
+
 # How to Send Signals to the Workflow
 
-yaketyyak uses Temporal signals to communicate with the running workflow. Each signal triggers a specific behavior.
+Most workflow signals beyond `wont-do` are not yet implemented.
 
-## CI signal
+## wont-do (implemented)
 
-Triggered when a CI pipeline completes:
-
-```bash
-yyx ci \
-    --conclusion failure \
-    --branch feat/foo \
-    --sha abc1234
-```
-
-The workflow syncs yaks, triages g2g yaks, and starts implementing.
-
-## g2g scan signal
-
-Triggers an immediate check for `@g2g`-tagged yaks:
+To cancel a running shave:
 
 ```bash
-yyx g2g-scan
+temporal workflow signal \
+    --workflow-id yyx-yak-<yak-name-slug> \
+    --name wont-do
 ```
 
-Use this after tagging a new yak as ready.
+See [Signals Reference](../reference/signals.md) for details.
 
-## PR feedback signal
+---
 
-Send review comments back into the rework loop:
+## Not yet implemented
 
-```bash
-yyx pr-feedback \
-    --pr-number 42 \
-    --comment "Fix the lint warning in payment.py" \
-    --author reviewer
-```
+The following signals are planned but not yet implemented:
 
-The workflow re-dispatches the agent to address feedback, then re-watches CI.
+| Signal | CLI command | Planned purpose |
+|--------|-------------|----------------|
+| `ci_signal` | `yyx ci` | Notify the workflow of a CI pipeline result |
+| `g2g_signal` | `yyx g2g-scan` | Trigger an immediate scan for `@g2g`-tagged yaks |
+| `pr_feedback` | `yyx pr-feedback` | Send PR review comments back to the agent |
+| `pause` | `yyx pause` | Pause the workflow |
+| `resume` | `yyx resume` | Resume a paused workflow |
 
-## Pause and resume
-
-Pause processing:
-
-```bash
-yyx pause
-```
-
-Resume:
-
-```bash
-yyx resume
-```
-
-When paused, the workflow ignores all signals. They queue up and are processed on resume.
-
-## Check status
-
-```bash
-yyx status
-```
-
-Returns the current workflow phase, active yak, and completion counts.
-
-> For full signal definitions, see [Signals Reference](../reference/signals.md).
-> For the CI-driven tutorial, see [CI-Driven Loop](../tutorials/ci-driven-loop.md).
-> To shave a single yak with the shave loop from the TUI, see [Shave a Yak](shave-a-yak.md).
+> For all implemented signal definitions, see [Signals Reference](../reference/signals.md).

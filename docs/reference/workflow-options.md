@@ -1,43 +1,58 @@
 # Workflow Options Reference
 
-Parameters accepted by `BarberWorkflow.run`.
+Flags accepted by `yyx shave`.
 
-## repo
-
-Type: `string` (required)
-
-GitHub repository in `"owner/repo"` format. Used for GitHub API calls in `watch_pr_ci` and `merge_pr`.
-
-## repo_root
+## --repo-url
 
 Type: `string` (required)
 
-Absolute path to the local checkout of the repository. Passed to the agent as the working directory.
+GitHub repository URL. Used for cloning and PR creation.
 
-## agent_type
+```bash
+yyx shave my-yak --repo-url https://github.com/owner/repo
+```
 
-Type: `string` (optional, default: `"pi"`)
+## --pi-model
 
-Which AI coding agent to dispatch. One of:
+Type: `string` (optional, default: `"claude-sonnet-4-6"`)
 
-| Value | CLI Command | Environment Variable Required |
-|-------|-------------|------------------------------|
-| `pi` | `pi -p` | none |
-| `claude-code` | `claude -p` | `ANTHROPIC_API_KEY` |
-| `codex` | `codex exec` | `OPENAI_API_KEY` |
-| `opencode` | `opencode -p` | none |
+LiteLLM model name to pass to Pi. If unset, the default model (`claude-sonnet-4-6`) is used.
 
-## g2g_mode
+```bash
+yyx shave my-yak --repo-url https://github.com/owner/repo --pi-model anthropic/claude-sonnet-4
+```
 
-Type: `bool` (optional, default: `false`)
+## --pi-tools
 
-If `true`, the workflow ONLY processes yaks tagged `@g2g`. Regular triage (un-tagged actionable yaks) is skipped. Use this when you want tight control over what the autonomous loop touches.
+Type: `[]string` (optional, default: `read,bash,edit,write`)
 
-## g2g_scan_interval_minutes
+Comma-separated list of Pi tools to enable. The defaults are sufficient for most yaks.
 
-Type: `int` (optional, default: `60`)
+```bash
+yyx shave my-yak --repo-url https://github.com/owner/repo --pi-tools read,bash,edit,write
+```
 
-How often (in minutes) the workflow scans for `@g2g`-tagged yaks when idle. A scan is also triggered whenever a signal arrives (`ci_signal`, `g2g_signal`, `pr_feedback`, `resume`).
+## --pi-skill
 
-> For how to start the workflow with these options, see [Start the Workflow](../how-to/start-the-workflow.md).
+Type: `[]string` (optional, repeatable)
+
+Path(s) to Pi skill files to load. Can be specified multiple times.
+
+```bash
+yyx shave my-yak --repo-url https://github.com/owner/repo \
+    --pi-skill /path/to/skill-a.md \
+    --pi-skill /path/to/skill-b.md
+```
+
+## Environment variables (worker)
+
+These are read by the **worker process**, not by `yyx shave` itself.
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `LITELLM_BASE_URL` | Yes | LiteLLM gateway URL (e.g. `http://localhost:4000`) |
+| `LITELLM_API_KEY` | Yes | LiteLLM API key |
+| `GITHUB_TOKEN` | Yes | GitHub personal access token with `repo` scope |
+
+> For how to use these flags, see [Start the Workflow](../how-to/start-the-workflow.md).
 > For the data types behind these options, see [Data Types](data-types.md).
