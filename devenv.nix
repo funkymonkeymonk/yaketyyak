@@ -40,6 +40,12 @@ in
       process-compose = {
         availability.restart = "on_failure";
         depends_on."temporal-dev-server".condition = "process_healthy";
+        readiness_probe = {
+          exec.command = "curl -sf http://localhost:''${HEALTH_PORT:-8080}/health";
+          initial_delay_seconds = 5;
+          period_seconds = 3;
+          failure_threshold = 10;
+        };
       };
     };
   };
