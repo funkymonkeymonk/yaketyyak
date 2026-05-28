@@ -71,7 +71,7 @@ func runShave(cmd *cobra.Command, args []string) {
 		TaskQueue: temporal.TaskQueue,
 	}
 
-	run, err := c.ExecuteWorkflow(cmd.Context(), opts, temporal.YakWorkflow, yakName, repoRoot, cfg)
+	run, err := c.ExecuteWorkflow(cmd.Context(), opts, "YakWorkflow", yakName, repoRoot, cfg)
 	if err != nil {
 		log.Fatalf("Failed to start YakWorkflow: %v", err)
 	}

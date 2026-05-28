@@ -31,21 +31,11 @@ in
       };
     };
 
-    # Workflow worker (Go) — executes YakWorkflow, handles queries and signals.
-    workflow-worker = {
-      exec = "${projectRoot}/dist/yyx-worker";
-      process-compose = {
-        availability.restart = "on_failure";
-        depends_on."temporal-dev-server".condition = "process_healthy";
-      };
-    };
-
-    # Activity worker (TypeScript) — executes all activities via Pi SDK.
+    # Single worker — handles both workflow orchestration and activity execution.
     worker = {
       exec = ''
-        cd ${projectRoot}/worker && npm ci --silent
-        exec op run --env-file=${projectRoot}/.env.op -- \
-          ${projectRoot}/worker/node_modules/.bin/tsx src/worker.ts
+        cd ${projectRoot}/worker && npm ci --silent && npm run build
+        exec op run --env-file=${projectRoot}/.env.op -- node ${projectRoot}/worker/dist/worker.js
       '';
       process-compose = {
         availability.restart = "on_failure";
@@ -57,7 +47,7 @@ in
   containers."worker" = {
     name = "yyx-worker";
     copyToRoot = null;
-    startupCommand = "op run --env-file=${projectRoot}/.env.op -- node ${projectRoot}/worker/node_modules/.bin/tsx src/worker.ts";
+    startupCommand = "op run --env-file=${projectRoot}/.env.op -- node ${projectRoot}/worker/dist/worker.js";
   };
 
   scripts.yyx.exec = "${projectRoot}/dist/yyx";
@@ -73,11 +63,11 @@ in
 
   tasks = {
     "yyx:build" = {
-      description = "Build yyx TUI and workflow worker binaries (activity worker runs via tsx)";
+      description = "Build yyx TUI binary and TypeScript worker";
       exec = ''
         mkdir -p dist
         go build -o dist/yyx .
-        go build -o dist/yyx-worker ./cmd/yyx-worker
+        cd worker && npm ci --silent && npm run build
       '';
     };
 
