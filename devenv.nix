@@ -55,6 +55,12 @@ in
           "temporal-dev-server".condition = "process_healthy";
           "temporal-setup".condition = "process_completed_successfully";
         };
+        readiness_probe = {
+          exec.command = "curl -sf http://localhost:''${HEALTH_PORT:-8080}/health";
+          initial_delay_seconds = 5;
+          period_seconds = 3;
+          failure_threshold = 10;
+        };
       };
     };
   };
