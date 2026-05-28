@@ -4,7 +4,7 @@ Signals that can be sent to a running `YakWorkflow`.
 
 ## wont-do
 
-Cancels the workflow and releases the claimed yak. The yak is returned to `todo` state.
+Cancels the workflow and releases the claimed yak. The yak is returned to `todo` state and tagged `@needs-human`.
 
 ```bash
 temporal workflow signal \
@@ -13,28 +13,6 @@ temporal workflow signal \
 ```
 
 Use this when a running shave should be abandoned — for example, if the yak turned out to be out of scope, or Pi is clearly going in the wrong direction.
-
-## Query: yak_status
-
-Returns the current workflow state as a `YakWorkflowState` JSON object. Not a signal — a Temporal query (read-only).
-
-```bash
-temporal workflow query \
-    --workflow-id yyx-yak-<yak-name-slug> \
-    --type yak_status
-```
-
-Output:
-
-```json
-{
-  "yakName": "update documentation to reflect current architecture",
-  "phase": "implementing",
-  "workspace": "shave-update-documentation-to-reflect-current-architecture-7yf2",
-  "prUrl": "",
-  "prNumber": 0
-}
-```
 
 ---
 

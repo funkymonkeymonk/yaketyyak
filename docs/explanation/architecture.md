@@ -23,7 +23,7 @@ Temporal provides four properties that map directly to the problem of CI-trigger
        │ yx sync / yx ls / yx start / yx done
        ▼
 ┌──────────────────────────────────────────┐
-│          BarberWorkflow                       │
+│          YakWorkflow                    │
 │                                          │
 │  ┌──────────┐   ┌──────────────────┐     │
 │  │ Signals  │──▶│ Main Loop        │     │
@@ -50,12 +50,10 @@ Temporal provides four properties that map directly to the problem of CI-trigger
 
 ### Trigger sources
 
-| Source | Mechanism | Latency |
-|--------|-----------|---------|
-| GitHub CI completion | `workflow_run` webhook → `ci_signal` | Seconds |
-| `@g2g` tag on yak | `g2g_signal` from CLI or script | Instant |
-| Periodic scan | Idle timeout in main loop | Configurable (default 60m) |
-| PR review comment | `pr_feedback` signal from CLI | Manual |
+| Source | Mechanism |
+|--------|----------|
+| CLI invocation | `yyx shave <yak-name>` starts a new `YakWorkflow` |
+| Abandonment | `wont-do` signal cancels a running workflow |
 
 ### Yak lifecycle within the workflow
 
@@ -78,5 +76,4 @@ The workflow never exits the yak lifecycle until the PR is merged or the yak is 
 **Why g2g-only mode?** Safety. By default, the workflow only processes yaks explicitly tagged `@g2g`. This prevents it from claiming every `todo` yak and making unwanted changes. The tag is the human's commit signal.
 
 > For alternatives considered, see [Why Temporal](why-temporal.md).
-> For the single-yak shave loop workflow with adversarial review, see [Barber and Shave Workflows](barber-and-shave-workflows.md).
-> For how the workflow was designed to integrate with the existing shave-yaks ecosystem, see the [nix repo](https://github.com/funkymonkeymonk/nix).
+> For the workflow definition and activity sequence, see [YakWorkflow Reference](../reference/yak-workflow.md).

@@ -1,7 +1,8 @@
-import { execFileSync, execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { Context } from "@temporalio/activity";
+import { Octokit } from "@octokit/rest";
 import type { PRResult } from "./types.js";
 
 // --- Yak lifecycle ---
@@ -27,58 +28,89 @@ export async function WritePRToYak(yakName: string, prUrl: string): Promise<void
 
 // --- Workspace lifecycle ---
 
-export async function InitWorkspace(repoRoot: string, yakName: string): Promise<string> {
+export async function InitWorkspace(
+  repoUrl: string,
+  yakName: string,
+): Promise<string> {
   const slug = sanitizeID(yakName.toLowerCase());
   const workspaceName = `shave-${slug}`;
-  const workspacePath = `.workspaces/${workspaceName}`;
-  const fullPath = join(repoRoot, workspacePath);
+  const branch = `shave/${slug}`;
 
-  // Ensure parent exists and clear any stale directory from a previous run.
+  // Determine workspaces root relative to the repo being cloned.
+  // We store clones alongside the main checkout in .workspaces/.
+  const repoRoot = process.cwd();
+  const workspacePath = join(repoRoot, ".workspaces", workspaceName);
+
+  // Clean any stale workspace from a previous run.
+  rmSync(workspacePath, { recursive: true, force: true });
   mkdirSync(join(repoRoot, ".workspaces"), { recursive: true });
-  rmSync(fullPath, { recursive: true, force: true });
 
-  run("jj", ["git", "fetch"], { cwd: repoRoot });
-  run("jj", ["workspace", "add", "--name", workspaceName, workspacePath], { cwd: repoRoot });
+  // Clone the repo into a fresh isolated directory.
+  const cloneUrl = authenticatedUrl(repoUrl);
+  run("git", ["clone", "--depth", "1", cloneUrl, workspacePath]);
+
+  // Create and switch to the shave branch.
+  run("git", ["checkout", "-b", branch], { cwd: workspacePath });
+
+  // Configure git identity for commits inside the workspace.
+  run("git", ["config", "user.email", "yaketyyak[bot]@users.noreply.github.com"], { cwd: workspacePath });
+  run("git", ["config", "user.name", "yaketyyak[bot]"], { cwd: workspacePath });
 
   return workspaceName;
 }
 
-export async function CleanupWorkspace(repoRoot: string, workspaceName: string): Promise<void> {
-  tryRun("jj", ["workspace", "forget", workspaceName], { cwd: repoRoot });
+export async function CleanupWorkspace(workspaceName: string): Promise<void> {
+  const repoRoot = process.cwd();
+  const workspacePath = join(repoRoot, ".workspaces", workspaceName);
+  rmSync(workspacePath, { recursive: true, force: true });
 }
 
 // --- PR lifecycle ---
 
 export async function CreateDraftPR(
-  repoRoot: string,
+  repoUrl: string,
   workspaceName: string,
-  _yakName: string,
+  yakName: string,
 ): Promise<PRResult> {
+  const repoRoot = process.cwd();
   const workspacePath = join(repoRoot, ".workspaces", workspaceName);
+  const slug = sanitizeID(yakName.toLowerCase());
+  const branch = `shave/${slug}`;
+  const { owner, repo } = parseRepoUrl(repoUrl);
 
-  run("jj", ["git", "push", "--allow-new"], { cwd: workspacePath });
+  // Push the branch.
+  const cloneUrl = authenticatedUrl(repoUrl);
+  run("git", ["push", cloneUrl, `${branch}:${branch}`], { cwd: workspacePath });
 
-  const repo = repoRemoteToPath(repoRoot);
-  const createArgs = ["pr", "create", "--draft", "--fill", ...(repo ? ["--repo", repo] : [])];
-  const output = run("gh", createArgs, { cwd: workspacePath });
+  // Create the draft PR via Octokit.
+  const octokit = getOctokit();
+  const { data: pr } = await octokit.rest.pulls.create({
+    owner,
+    repo,
+    title: yakName,
+    head: branch,
+    base: "main",
+    draft: true,
+    body: `Automated shave by [yaketyyak](https://github.com/funkymonkeymonk/yaketyyak)\n\nYak: \`${yakName}\``,
+  });
 
-  return parsePROutput(output);
+  return { prUrl: pr.html_url, prNumber: pr.number };
 }
 
-export async function WatchPRMerged(prNumber: number, repoRoot: string): Promise<boolean> {
-  const repo = repoRemoteToPath(repoRoot);
+export async function WatchPRMerged(prNumber: number, repoUrl: string): Promise<boolean> {
+  const { owner, repo } = parseRepoUrl(repoUrl);
+  const octokit = getOctokit();
   const pollMs = 60_000;
 
   while (true) {
     Context.current().heartbeat(`watching PR #${prNumber}`);
 
     try {
-      const args = ["pr", "view", String(prNumber), "--json", "state,merged", ...(repo ? ["--repo", repo] : [])];
-      const out = run("gh", args, { cwd: repoRoot });
-      const pr = JSON.parse(out) as { state: string; merged: boolean };
+      const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
       if (pr.merged) return true;
+      if (pr.state === "closed") return false; // closed without merge = won't-do
     } catch {
-      // transient gh error — retry next tick
+      // transient error — retry next tick
     }
 
     await sleep(pollMs);
@@ -87,56 +119,40 @@ export async function WatchPRMerged(prNumber: number, repoRoot: string): Promise
 
 // --- helpers ---
 
-interface RunOpts {
-  cwd?: string;
-  env?: NodeJS.ProcessEnv;
-}
+interface RunOpts { cwd?: string }
 
 function run(cmd: string, args: string[], opts: RunOpts = {}): string {
   return execFileSync(cmd, args, {
-    cwd: opts.cwd,
-    env: opts.env ?? process.env,
+    cwd: opts.cwd ?? process.cwd(),
     encoding: "utf8",
   }).trim();
 }
 
 function tryRun(cmd: string, args: string[], opts: RunOpts = {}): void {
-  try {
-    run(cmd, args, opts);
-  } catch {
-    // best-effort
-  }
+  try { run(cmd, args, opts); } catch { /* best-effort */ }
 }
 
-function repoRemoteToPath(repoRoot: string): string {
-  try {
-    const url = execFileSync("git", ["remote", "get-url", "origin"], {
-      cwd: repoRoot,
-      encoding: "utf8",
-    }).trim();
-    return url
-      .replace(/^.*:\/\//, "")
-      .replace(/^git@/, "")
-      .replace(":", "/")
-      .replace(/\.git$/, "")
-      .replace(/^\//, "");
-  } catch {
-    return "";
-  }
+function getOctokit(): Octokit {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) throw new Error("GITHUB_TOKEN is not set");
+  return new Octokit({ auth: token });
 }
 
-function parsePROutput(output: string): PRResult {
-  for (const line of output.split("\n")) {
-    const trimmed = line.trim();
-    if (trimmed.includes("/pull/")) {
-      const parts = trimmed.split("/pull/");
-      if (parts.length === 2) {
-        const prNumber = parseInt(parts[1].trim(), 10);
-        return { prUrl: trimmed, prNumber: isNaN(prNumber) ? 0 : prNumber };
-      }
-    }
-  }
-  throw new Error(`Could not parse PR URL from: ${output}`);
+/** Inject GITHUB_TOKEN into the clone URL for authenticated push/pull. */
+function authenticatedUrl(repoUrl: string): string {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) throw new Error("GITHUB_TOKEN is not set");
+  return repoUrl.replace("https://", `https://x-access-token:${token}@`);
+}
+
+function parseRepoUrl(repoUrl: string): { owner: string; repo: string } {
+  // Accepts https://github.com/owner/repo or github.com/owner/repo
+  const clean = repoUrl.replace(/^https?:\/\//, "").replace(/\.git$/, "");
+  const parts = clean.split("/");
+  const owner = parts[parts.length - 2];
+  const repo = parts[parts.length - 1];
+  if (!owner || !repo) throw new Error(`Cannot parse repo URL: ${repoUrl}`);
+  return { owner, repo };
 }
 
 function sanitizeID(name: string): string {

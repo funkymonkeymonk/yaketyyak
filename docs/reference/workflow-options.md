@@ -2,25 +2,46 @@
 
 Flags accepted by `yyx shave`.
 
-## --repo-url
+## --repo-root
 
-Type: `string` (required)
+Type: `string` (optional, default: current directory)
 
-GitHub repository URL. Used for cloning and PR creation.
+Absolute or relative path to the local checkout of the repository to work in. The workflow passes this to Pi as the working directory and uses it for jj workspace operations.
 
 ```bash
-yyx shave my-yak --repo-url https://github.com/owner/repo
+yyx shave my-yak --repo-root /path/to/repo
 ```
 
 ## --pi-model
 
 Type: `string` (optional, default: `"claude-sonnet-4-6"`)
 
-LiteLLM model name to pass to Pi. If unset, the default model (`claude-sonnet-4-6`) is used.
+LiteLLM model name to pass to Pi. If unset, Pi uses `claude-sonnet-4-6`.
 
 ```bash
-yyx shave my-yak --repo-url https://github.com/owner/repo --pi-model anthropic/claude-sonnet-4
+yyx shave my-yak --pi-model claude-haiku-4-5-20251001
 ```
+
+### Known-good models
+
+Only models that correctly implement the tool-calling protocol used by Pi will work.
+Models **not** on this list may produce `malformed_model_output` errors.
+
+| Model | Speed | Cost | Recommended for |
+|-------|-------|------|-----------------|
+| `claude-haiku-4-5-20251001` | fast | cheap | docs, config, simple fixes |
+| `claude-sonnet-4-6` | medium | medium | **default** — general purpose |
+| `claude-opus-4-5-20251101` | slow | expensive | complex refactors, architecture |
+
+### Incompatible models
+
+The following models are **known incompatible** with Pi tool-calling. The worker
+will fast-fail with a clear error if one of these is configured:
+
+- `moonshotai.kimi-k2.5`
+- `moonshot.kimi-k2-thinking`
+
+To extend this list, edit `INCOMPATIBLE_MODELS` in `worker/src/types.ts`.
 
 ## --pi-tools
 
@@ -29,17 +50,17 @@ Type: `[]string` (optional, default: `read,bash,edit,write`)
 Comma-separated list of Pi tools to enable. The defaults are sufficient for most yaks.
 
 ```bash
-yyx shave my-yak --repo-url https://github.com/owner/repo --pi-tools read,bash,edit,write
+yyx shave my-yak --pi-tools read,bash,edit,write
 ```
 
 ## --pi-skill
 
 Type: `[]string` (optional, repeatable)
 
-Path(s) to Pi skill files to load. Can be specified multiple times.
+Path(s) to Pi skill files to load via `--skill`. Can be specified multiple times.
 
 ```bash
-yyx shave my-yak --repo-url https://github.com/owner/repo \
+yyx shave my-yak \
     --pi-skill /path/to/skill-a.md \
     --pi-skill /path/to/skill-b.md
 ```

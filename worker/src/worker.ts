@@ -39,6 +39,8 @@ async function main() {
       ...activities,
       RunAgent,
     },
+    // Allow two workflows to execute concurrently in this worker process.
+    maxConcurrentWorkflowTaskExecutions: 2,
   });
 
   ready = true;

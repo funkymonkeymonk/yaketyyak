@@ -5,14 +5,14 @@ Start a durable `YakWorkflow` to shave a single yak autonomously.
 ## Basic usage
 
 ```bash
-yyx shave <yak-name> --repo-url https://github.com/owner/repo
+yyx shave <yak-name>
 ```
 
 The yak name can be given as space-separated words or hyphenated:
 
 ```bash
-yyx shave update documentation --repo-url https://github.com/owner/repo
-yyx shave update-documentation-to-reflect-current-architecture-7yf2 --repo-url https://github.com/funkymonkeymonk/yaketyyak
+yyx shave update documentation
+yyx shave update-documentation-to-reflect-current-architecture-7yf2
 ```
 
 Both forms start the same workflow. The deterministic workflow ID is derived from the yak name (e.g. `yyx-yak-update-documentation`).
@@ -21,7 +21,7 @@ Both forms start the same workflow. The deterministic workflow ID is derived fro
 
 ```bash
 yyx shave <yak-name> \
-    --repo-url https://github.com/owner/repo \
+    --repo-root /path/to/repo \
     --pi-model anthropic/claude-sonnet-4 \
     --pi-tools read,bash,edit,write \
     --pi-skill /path/to/skill.md
@@ -30,11 +30,11 @@ yyx shave <yak-name> \
 ## What happens
 
 1. The workflow claims the yak via `yx start` and syncs
-2. An isolated git workspace is cloned under `.workspaces/shave-<slug>/`
+2. An isolated jj workspace is created under `.workspaces/`
 3. Pi is dispatched via LiteLLM to implement the yak in the workspace
-4. The workflow pushes the branch and creates a draft PR
-5. The workflow polls the GitHub API until the PR is merged
-6. On merge, the yak is marked done with `yx done` and synced; the workspace is cleaned up
+4. The workflow creates a draft PR with `gh pr create`
+5. The workflow watches for the PR to be merged
+6. On merge, the yak is marked done with `yx done` and synced
 
 ## Output
 
@@ -42,7 +42,7 @@ yyx shave <yak-name> \
 Started YakWorkflow for "update documentation"
   Workflow ID: yyx-yak-update-documentation
   Run ID:      <temporal-run-id>
-  Repo URL:    https://github.com/owner/repo
+  Repo root:   /path/to/repo
 ```
 
 ## Environment variables
