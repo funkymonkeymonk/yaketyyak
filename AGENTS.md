@@ -75,6 +75,15 @@ yx start <name>   # mark as wip
 yx done <name>    # mark complete
 ```
 
+## Yak Templates
+
+Standard templates for creating and refining yaks are in `.yaks/templates/`:
+
+- `.yaks/templates/basic.md` — standard shave-ready yak with Problem / Acceptance Criteria / Files / Notes sections
+- `.yaks/templates/with-agent-config.md` — same as basic, plus an `agent_config` field section with example `yx field` commands
+
+Copy the appropriate template and fill it in when creating or refining a yak. Use `with-agent-config.md` when you need to control which model or tools the agent uses.
+
 ## TUI design
 
 The TUI follows patterns distilled from [gh-dash](https://github.com/dlvhdr/gh-dash). All TUI
