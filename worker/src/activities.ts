@@ -3,7 +3,7 @@ import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { Context } from "@temporalio/activity";
 import { Octokit } from "@octokit/rest";
-import type { PRResult } from "./types.js";
+import type { PRResult, PRWatchResult, ReviewComment } from "./types.js";
 
 // --- Yak lifecycle ---
 
@@ -97,7 +97,11 @@ export async function CreateDraftPR(
   return { prUrl: pr.html_url, prNumber: pr.number };
 }
 
-export async function WatchPRMerged(prNumber: number, repoUrl: string): Promise<boolean> {
+export async function WatchPRState(
+  prNumber: number,
+  repoUrl: string,
+  lastReviewId: number,
+): Promise<PRWatchResult> {
   const { owner, repo } = parseRepoUrl(repoUrl);
   const octokit = getOctokit();
   const pollMs = 60_000;
@@ -107,14 +111,94 @@ export async function WatchPRMerged(prNumber: number, repoUrl: string): Promise<
 
     try {
       const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
-      if (pr.merged) return true;
-      if (pr.state === "closed") return false; // closed without merge = won't-do
+      if (pr.merged) return { outcome: "merged" };
+      if (pr.state === "closed") return { outcome: "closed" };
+    } catch {
+      // transient error — retry next tick
+    }
+
+    try {
+      const { data: reviews } = await octokit.rest.pulls.listReviews({
+        owner,
+        repo,
+        pull_number: prNumber,
+      });
+
+      // Find the most recent CHANGES_REQUESTED review with id > lastReviewId.
+      const feedbackReview = reviews
+        .filter((r) => r.state === "CHANGES_REQUESTED" && r.id > lastReviewId)
+        .sort((a, b) => b.id - a.id)[0];
+
+      if (feedbackReview) {
+        // Fetch per-line comments for this review.
+        const comments: ReviewComment[] = [];
+        try {
+          const { data: rawComments } = await octokit.rest.pulls.listCommentsForReview({
+            owner,
+            repo,
+            pull_number: prNumber,
+            review_id: feedbackReview.id,
+          });
+          for (const c of rawComments) {
+            comments.push({
+              path: c.path,
+              line: c.line ?? c.original_line ?? null,
+              body: c.body,
+            });
+          }
+        } catch {
+          // Best-effort: continue without per-line comments
+        }
+
+        return {
+          outcome: "feedback",
+          reviewId: feedbackReview.id,
+          reviewBody: feedbackReview.body ?? "",
+          reviewComments: comments,
+        };
+      }
     } catch {
       // transient error — retry next tick
     }
 
     await sleep(pollMs);
   }
+}
+
+export async function RespondToReview(
+  repoUrl: string,
+  prNumber: number,
+  _reviewId: number,
+  message: string,
+): Promise<void> {
+  const { owner, repo } = parseRepoUrl(repoUrl);
+  const octokit = getOctokit();
+  await octokit.rest.issues.createComment({
+    owner,
+    repo,
+    issue_number: prNumber,
+    body: message,
+  });
+}
+
+export async function PushFeedbackCommit(
+  repoUrl: string,
+  workspaceName: string,
+  round: number,
+): Promise<void> {
+  const repoRoot = process.cwd();
+  const workspacePath = join(repoRoot, ".workspaces", workspaceName);
+  const cloneUrl = authenticatedUrl(repoUrl);
+
+  // Stage all changes made by the agent.
+  run("git", ["add", "-A"], { cwd: workspacePath });
+
+  // Commit. Allow empty commits in case the agent made no file changes.
+  tryRun("git", ["commit", "--allow-empty", "-m", `feedback round ${round}: address review comments`], { cwd: workspacePath });
+
+  // Determine the current branch name and push.
+  const branch = run("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: workspacePath });
+  run("git", ["push", cloneUrl, `${branch}:${branch}`], { cwd: workspacePath });
 }
 
 // --- helpers ---

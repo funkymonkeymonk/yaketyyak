@@ -19,12 +19,30 @@ export interface PRResult {
   prNumber: number;
 }
 
+export interface ReviewComment {
+  path: string;
+  line: number | null;
+  body: string;
+}
+
+export type PRWatchOutcome = "merged" | "closed" | "feedback";
+
+export interface PRWatchResult {
+  outcome: PRWatchOutcome;
+  /** Set when outcome === "feedback" */
+  reviewId?: number;
+  reviewBody?: string;
+  reviewComments?: ReviewComment[];
+}
+
 export interface YakWorkflowState {
   yakName: string;
   phase: string;
   workspace: string;
   prUrl: string;
   prNumber: number;
+  /** Number of completed feedback rounds (0 = initial implementation). */
+  feedbackRound: number;
 }
 
 export const DEFAULT_PI_TOOLS = ["read", "bash", "edit", "write"];

@@ -24,6 +24,7 @@ export async function RunAgent(
   yakName: string,
   workspaceName: string,
   cfg: PiConfig,
+  feedbackContext?: string,
 ): Promise<void> {
   const repoRoot = process.cwd();
   const workspacePath = join(repoRoot, ".workspaces", workspaceName);
@@ -39,7 +40,7 @@ export async function RunAgent(
     );
   }
 
-  const contextFile = writeContextFile(yakName, workspacePath);
+  const contextFile = writeContextFile(yakName, workspacePath, feedbackContext);
 
   // Start an async background heartbeat so Temporal never sees a heartbeat gap
   // longer than HEARTBEAT_INTERVAL_MS, regardless of how long individual tool
@@ -189,7 +190,7 @@ async function runPi(opts: {
   session.dispose();
 }
 
-function writeContextFile(yakName: string, workspacePath: string): string {
+function writeContextFile(yakName: string, workspacePath: string, feedbackContext?: string): string {
   const out = execFileSync("yx", ["show", yakName, "--format", "json"], {
     encoding: "utf8",
   });
@@ -203,6 +204,12 @@ function writeContextFile(yakName: string, workspacePath: string): string {
 
   mkdirSync(workspacePath, { recursive: true });
   const contextFile = join(workspacePath, ".yak-context.md");
-  writeFileSync(contextFile, data.context, "utf8");
+
+  let contents = data.context;
+  if (feedbackContext) {
+    contents += `\n\n---\n\n${feedbackContext}\n`;
+  }
+
+  writeFileSync(contextFile, contents, "utf8");
   return contextFile;
 }
