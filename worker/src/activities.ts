@@ -82,6 +82,15 @@ export async function CreateDraftPR(
   const cloneUrl = authenticatedUrl(repoUrl);
   run("git", ["push", cloneUrl, `${branch}:${branch}`], { cwd: workspacePath });
 
+  // Detect base branch from the workspace clone.
+  const base = detectBaseBranch(workspacePath);
+
+  // Fetch yak context for a richer PR body.
+  const yakContext = fetchYakContext(yakName);
+  const body = yakContext
+    ? `> Automated shave by [yaketyyak](https://github.com/funkymonkeymonk/yaketyyak)\n\n## Yak Context\n\n${yakContext}`
+    : `> Automated shave by [yaketyyak](https://github.com/funkymonkeymonk/yaketyyak)`;
+
   // Create the draft PR via Octokit.
   const octokit = getOctokit();
   const { data: pr } = await octokit.rest.pulls.create({
@@ -89,9 +98,9 @@ export async function CreateDraftPR(
     repo,
     title: yakName,
     head: branch,
-    base: "main",
+    base,
     draft: true,
-    body: `Automated shave by [yaketyyak](https://github.com/funkymonkeymonk/yaketyyak)\n\nYak: \`${yakName}\``,
+    body,
   });
 
   return { prUrl: pr.html_url, prNumber: pr.number };
@@ -199,6 +208,38 @@ export async function PushFeedbackCommit(
   // Determine the current branch name and push.
   const branch = run("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: workspacePath });
   run("git", ["push", cloneUrl, `${branch}:${branch}`], { cwd: workspacePath });
+}
+
+// --- shared helpers ---
+
+/**
+ * Detect the default base branch for a workspace clone by reading the
+ * symbolic ref that `git clone` sets on `origin/HEAD`.
+ * Falls back to "main" if detection fails.
+ */
+export function detectBaseBranch(workspacePath: string): string {
+  try {
+    const ref = run("git", ["rev-parse", "--abbrev-ref", "origin/HEAD"], { cwd: workspacePath });
+    // ref is e.g. "origin/main" — strip the "origin/" prefix.
+    return ref.replace(/^origin\//, "") || "main";
+  } catch {
+    return "main";
+  }
+}
+
+/**
+ * Fetch the full context markdown for a yak via `yx show --format json`.
+ * Returns null if the yak has no context or the command fails.
+ */
+function fetchYakContext(yakName: string): string | null {
+  try {
+    const out = run("yx", ["show", yakName, "--format", "json"]);
+    const data = JSON.parse(out) as { context?: string; has_context?: boolean };
+    if (!data.has_context || !data.context) return null;
+    return data.context;
+  } catch {
+    return null;
+  }
 }
 
 // --- helpers ---
