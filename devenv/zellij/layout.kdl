@@ -1,8 +1,27 @@
 layout {
-    pane split_direction="vertical" {
-        pane size="60%" name="shell"
-        pane size="40%" name="devenv" command="devenv" {
-            args "up"
+    pane_template name="sidebar" {
+        pane stacked=true {
+            pane command="gh-dash"
+            pane command="tempo"
+        }
+    }
+    tab name="dev" focus=true {
+        pane size=1 borderless=true {
+            plugin location="zellij:tab-bar"
+        }
+        pane split_direction="vertical" {
+            pane size="30%" {
+                sidebar
+            }
+            pane split_direction="horizontal" {
+                pane size="25%" name="devenv up" command="devenv" {
+                    args "up"
+                }
+                pane command="opencode" focus=true
+            }
+        }
+        pane size=1 borderless=true {
+            plugin location="zellij:status-bar"
         }
     }
 }

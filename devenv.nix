@@ -1,7 +1,21 @@
-{ pkgs, inputs, ... }:
+{ pkgs, ... }:
 
 let
   projectRoot = builtins.toString ./.;
+
+  tempo = pkgs.buildGoModule rec {
+    pname = "tempo";
+    version = "0.1.14";
+    src = pkgs.fetchFromGitHub {
+      owner = "galaxy-io";
+      repo = "tempo";
+      rev = "v${version}";
+      hash = "sha256-HjKBm34HGX11mQCmdMpa09jT6ZgqpRO6gJaFmCWryLQ=";
+    };
+    vendorHash = "sha256-P7T9yQD28/MTTYnvhb/uckyLh15I7AD7uMnmaTa3YZk=";
+    subPackages = [ "cmd/tempo" ];
+    ldflags = [ "-s" "-w" ];
+  };
 in
 {
   languages.go = {
@@ -15,80 +29,43 @@ in
     temporal-cli
     gotools
     zellij
-    inputs.llm-agents.packages.${pkgs.system}.pi
+    tempo
+    tree-sitter-grammars.tree-sitter-kdl
+    kdlfmt
   ];
 
   processes = {
-    temporal-dev-server = {
-      exec = "temporal server start-dev --ui-port 8233 --http-port 7243";
-      process-compose = {
-        readiness_probe = {
-          exec.command = "temporal operator cluster health --address localhost:7233";
-          initial_delay_seconds = 2;
-          period_seconds = 2;
-          failure_threshold = 10;
-        };
-      };
-    };
-
-    # Single worker — handles both workflow orchestration and activity execution.
-    temporal-setup = {
-      exec = ''
-        temporal operator search-attribute create --name PrUrl --type Text
-        temporal operator search-attribute create --name YakName --type Text
-        temporal operator search-attribute create --name Phase --type Text
-      '';
-      process-compose = {
-        availability.restart = "no";
-        depends_on."temporal-dev-server".condition = "process_healthy";
-      };
-    };
+    temporal-dev-server.exec = "temporal server start-dev";
 
     worker = {
-      exec = ''
-        cd ${projectRoot}/worker && npm ci --silent && npm run build
-        exec op run --env-file=${projectRoot}/.env.op -- node ${projectRoot}/worker/dist/worker.js
-      '';
+      exec = "${projectRoot}/yyx worker";
       process-compose = {
-        availability.restart = "on_failure";
-        depends_on = {
-          "temporal-dev-server".condition = "process_healthy";
-          "temporal-setup".condition = "process_completed_successfully";
-        };
-        readiness_probe = {
-          exec.command = "curl -sf http://localhost:''${HEALTH_PORT:-8080}/health";
-          initial_delay_seconds = 5;
-          period_seconds = 3;
-          failure_threshold = 10;
-        };
+        availability.restart = "always";
+        replicas = 1;
+        depends_on."temporal-dev-server".condition = "process_started";
       };
     };
   };
 
-  containers."worker" = {
-    name = "yyx-worker";
-    copyToRoot = null;
-    startupCommand = "op run --env-file=${projectRoot}/.env.op -- node ${projectRoot}/worker/dist/worker.js";
-  };
-
-  scripts.yyx.exec = "${projectRoot}/dist/yyx";
+  scripts.yyx.exec = "${projectRoot}/yyx";
 
   scripts.dev-run.exec = ''
     set -e
     echo "Building..."
-    mkdir -p dist
-    go build -o dist/yyx .
+    go build -o yyx .
     echo "Launching TUI..."
-    exec dist/yyx
+    exec ./yyx
+  '';
+
+  scripts.dev-session.exec = ''
+    exec zellij --layout ${projectRoot}/devenv/zellij/layout.kdl
   '';
 
   tasks = {
     "yyx:build" = {
-      description = "Build yyx TUI binary and TypeScript worker";
+      description = "Build the yyx binary (fast, no lint/test)";
       exec = ''
-        mkdir -p dist
-        go build -o dist/yyx .
-        cd worker && npm ci --silent && npm run build
+        go build -o yyx .
       '';
     };
 
@@ -97,14 +74,14 @@ in
     "yyx:test" = {
       description = "Run all tests";
       exec = ''
-        go test . ./cmd/... ./temporal/... ./tui/...
+        go test ./...
       '';
     };
 
     "yyx:lint" = {
       description = "Run go vet";
       exec = ''
-        go vet . ./cmd/... ./temporal/... ./tui/...
+        go vet ./...
       '';
     };
 
@@ -117,19 +94,19 @@ in
     };
 
     "yyx:install" = {
-      description = "Full pipeline: lint, test, build, install yyx TUI";
+      description = "Full pipeline: lint, test, build, install";
       after = [ "yyx:check" "yyx:build" ];
       exec = ''
         install -d "$GOPATH/bin"
-        install -m 755 dist/yyx "$GOPATH/bin/yyx"
-        echo "Installed yyx to $GOPATH/bin"
+        install -m 755 yyx "$GOPATH/bin/yyx"
+        echo "Installed yyx to $GOPATH/bin/yyx"
       '';
     };
 
     "utils:clean" = {
       description = "Remove build artifacts";
       exec = ''
-        rm -rf dist/
+        rm -f yyx
         go clean
       '';
     };
@@ -138,7 +115,7 @@ in
   enterShell = ''
     echo "✦ yaketyyak dev environment"
     echo "  Go: $(go version 2>/dev/null || echo 'not found')"
-    echo "  yyx: $(which yyx 2>/dev/null || echo 'run \`devenv tasks run yyx:install\` first')"
+    echo "  yyx: $(which yyx 2>/dev/null || echo 'run \`devenv tasks run project:setup\` first')"
     echo ""
     echo "  Available tasks:"
     echo "    devenv tasks list                          # discover all tasks"
@@ -151,11 +128,11 @@ in
     echo ""
     echo "  Dev server:"
     echo "    devenv up                            Start dev server + worker"
-    echo "    zellij --layout ${projectRoot}/devenv/zellij/layout.kdl  TUI with shell + devenv up"
+    echo "    dev-session                          Launch zellij TUI (gh-dash + dev server + opencode + tempo)"
+    echo "    zellij --layout ${projectRoot}/devenv/zellij/layout.kdl  Direct zellij layout"
     echo ""
     echo "  Workflow:"
-    echo "    yyx shave <yak>                      Start a shave workflow"
-    echo "    dist/yyx shave <yak>                 (if yyx not installed)"
+    echo "    yyx start --repo user/repo --repo-root /path          Start a workflow"
     echo ""
     echo "  MCP server (for AI assistants):"
     echo "    devenv mcp                            stdio mode"
