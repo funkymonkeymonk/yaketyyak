@@ -50,6 +50,10 @@ func (s *sidebarModel) ShowRepo(repo *Repo, width int) {
 	lines = append(lines, padWidth(fmt.Sprintf("Path:   %s", dimStyle.Render(repo.Root)), width))
 	lines = append(lines, padWidth(fmt.Sprintf("Remote: %s", dimStyle.Render(repo.Remote)), width))
 	lines = append(lines, padWidth(fmt.Sprintf("Yaks:   %d", len(repo.Yaks)), width))
+
+	lines = append(lines, padWidth(dimStyle.Render("Workflow: not started"), width))
+
+
 	lines = append(lines, padWidth(sep, width))
 
 	lines = append(lines, padWidth(pinkBoldStyle.Render("Actions:"), width))
@@ -59,7 +63,7 @@ func (s *sidebarModel) ShowRepo(repo *Repo, width int) {
 	s.viewport.SetContent(strings.Join(lines, "\n"))
 }
 
-func (s *sidebarModel) ShowYak(yak *YakLine, width int) {
+func (s *sidebarModel) ShowYak(yak *YakLine, repo *Repo, width int) {
 	var lines []string
 	sep := dimStyle.Render(strings.Repeat("─", 40))
 
@@ -75,6 +79,29 @@ func (s *sidebarModel) ShowYak(yak *YakLine, width int) {
 	}
 
 	lines = append(lines, padWidth(sep, width))
+
+	// Shave Workflow section
+	if repo != nil && repo.ShaveState != nil {
+		ss := repo.ShaveState
+		lines = append(lines, padWidth(pinkBoldStyle.Render("Shave Workflow:"), width))
+		phaseStyle := dimStyle
+		switch ss.Phase {
+		case "implementing", "starting":
+			phaseStyle = wipStyle
+		case "done":
+			phaseStyle = doneStyle
+		case "failed":
+			phaseStyle = wipStyle
+		}
+		lines = append(lines, padWidth(fmt.Sprintf("  Phase: %s", phaseStyle.Render(ss.Phase)), width))
+		if ss.MaxRetries > 0 {
+			lines = append(lines, padWidth(fmt.Sprintf("  Iter:  %d/%d", ss.Iteration, ss.MaxRetries), width))
+		}
+		if ss.Workspace != "" {
+			lines = append(lines, padWidth(fmt.Sprintf("  WS:    %s", dimStyle.Render(ss.Workspace)), width))
+		}
+		lines = append(lines, padWidth(sep, width))
+	}
 
 	if yak.Context != "" {
 		lines = append(lines, padWidth(pinkBoldStyle.Render("Context:"), width))

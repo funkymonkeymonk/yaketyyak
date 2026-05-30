@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/funkymonkeymonk/yaketyyak/temporal"
 	"github.com/funkymonkeymonk/yaketyyak/tui"
 	"github.com/spf13/cobra"
 )
@@ -32,7 +33,7 @@ func runTUI(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to scan repos: %v", err)
 	}
 
-	m := tui.New(repos)
+	m := tui.New(repos, temporal.LLMConfig{})
 	p := tea.NewProgram(&m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	if _, err := p.Run(); err != nil {
 		log.Fatalf("TUI error: %v", err)

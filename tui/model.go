@@ -12,11 +12,18 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
+
+	"github.com/funkymonkeymonk/yaketyyak/temporal"
 )
 
 type signalMsg struct {
 	action string
 	err    error
+}
+
+type temporalAllMsg struct {
+	states      []*temporal.WorkflowState
+	shaveStates []*temporal.ShaveState
 }
 
 type editorDoneMsg struct {
@@ -53,13 +60,25 @@ type Model struct {
 	showHelp    bool
 	statusMsg   string
 	statusTimer int
+
+	// Temporal / shave workflow
+	llmConfig temporal.LLMConfig
+
+	// History view
+	showHistory            bool
+	historyWfID            string
+	historyStatus          string
+	historyLines           []string
+	historySpans           []activitySpan
+	historyTimelineReverse bool
+	historyViewport        int // scroll offset
 }
 
 func init() {
 	zone.NewGlobal()
 }
 
-func New(repos []Repo) Model {
+func New(repos []Repo, llmCfg temporal.LLMConfig) Model {
 	m := Model{
 		repos:      repos,
 		prLines:    collectPRs(repos),
@@ -72,6 +91,9 @@ func New(repos []Repo) Model {
 		prActivity: newPRActivity(),
 		sidePanel:  newSidebar(),
 		statusBar:  newFooter(),
+		llmConfig:  llmCfg,
+		// default timeline sort: most recent first
+		historyTimelineReverse: true,
 	}
 	m.prActivity.SetItems(m.prLines)
 	return m
@@ -135,6 +157,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateSidebar()
 		return m, nil
 
+	case temporalAllMsg:
+		for i, state := range msg.shaveStates {
+			if i < len(m.repos) {
+				m.repos[i].ShaveState = state
+			}
+		}
+		_ = msg.states
+		m.updateSidebar()
+		return m, nil
+
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 
@@ -170,10 +202,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case pollTickMsg:
-		return m, tea.Batch(
+		cmds := []tea.Cmd{
 			m.refresh(),
 			tea.Tick(pollInterval, func(t time.Time) tea.Msg { return pollTickMsg{} }),
-		)
+		}
+		if m.showHistory && m.historyWfID != "" {
+			cmds = append(cmds, m.fetchHistory(m.historyWfID))
+		}
+		return m, tea.Batch(cmds...)
 
 	case statusTickMsg:
 		return m, m.tickStatus()
@@ -202,6 +238,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
+	if m.showHistory {
+		return m.renderHistoryView()
+	}
+
 	if len(m.repos) == 0 {
 		return centerText(m.width, m.height, "No repos with .yaks/ found.\nRun `yx add <name>` to create a task.\n\nRefresh: Ctrl+R")
 	}
@@ -293,6 +333,10 @@ func (m *Model) totalYaks() int {
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.showConfirm {
 		return m.handleConfirmKey(msg)
+	}
+
+	if m.showHistory {
+		return m.handleHistoryKey(msg)
 	}
 
 	if m.showHelp {
@@ -387,6 +431,9 @@ func (m *Model) handleConfirmKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, m.keys.Confirm):
 		m.showConfirm = false
+		if m.confirmAction == "shave" {
+			return m.doShaveYak()
+		}
 	case key.Matches(msg, m.keys.Cancel):
 		m.showConfirm = false
 	}
@@ -418,7 +465,7 @@ func (m *Model) updateSidebar() {
 		m.sidePanel.ShowRepo(&m.repos[tl.repoIdx], w)
 	} else {
 		repo := m.repos[tl.repoIdx]
-		m.sidePanel.ShowYak(&repo.Yaks[tl.yakIdx], w)
+		m.sidePanel.ShowYak(&repo.Yaks[tl.yakIdx], &repo, w)
 	}
 }
 
@@ -491,6 +538,175 @@ func (m *Model) refresh() tea.Cmd {
 		repos, err := ScanRepos(cwd)
 		return refreshMsg{repos: repos, err: err}
 	}
+}
+
+// ---------- shave yak workflow ----------
+
+func (m *Model) shaveYak() (tea.Model, tea.Cmd) {
+	tl := m.currentTL()
+	if tl == nil || tl.kind != treeYak {
+		return m, nil
+	}
+	yak := m.repos[tl.repoIdx].Yaks[tl.yakIdx]
+	m.showConfirm = true
+	m.confirmMsg = fmt.Sprintf("Shave yak: %s?", yak.Name)
+	m.confirmAction = "shave"
+	return m, nil
+}
+
+func (m *Model) doShaveYak() (tea.Model, tea.Cmd) {
+	tl := m.currentTL()
+	if tl == nil || tl.kind != treeYak {
+		return m, nil
+	}
+	repoIdx := tl.repoIdx
+	yak := m.repos[repoIdx].Yaks[tl.yakIdx]
+
+	m.repos[repoIdx].ShaveState = &temporal.ShaveState{
+		YakName: yak.Name,
+		Phase:   "starting",
+	}
+	m.statusMsg = fmt.Sprintf("Starting shave for %s", yak.Name)
+	m.statusTimer = 5
+
+	return m, func() tea.Msg {
+		return signalMsg{action: "shave " + yak.Name, err: nil}
+	}
+}
+
+// terminalShaveState returns a ShaveState for a workflow that has reached a terminal status.
+func terminalShaveState(yakName string, status int32) *temporal.ShaveState {
+	phase := "unknown"
+	switch status {
+	case 2: // WORKFLOW_EXECUTION_STATUS_COMPLETED
+		phase = "done"
+	case 3: // WORKFLOW_EXECUTION_STATUS_FAILED
+		phase = "failed"
+	case 4: // WORKFLOW_EXECUTION_STATUS_CANCELED
+		phase = "cancelled"
+	case 5: // WORKFLOW_EXECUTION_STATUS_TERMINATED
+		phase = "terminated"
+	case 6: // WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW
+		phase = "continued"
+	case 7: // WORKFLOW_EXECUTION_STATUS_TIMED_OUT
+		phase = "timed_out"
+	}
+	return &temporal.ShaveState{YakName: yakName, Phase: phase}
+}
+
+// ---------- workflow history ----------
+
+func (m *Model) historyTargetWFID() string {
+	tl := m.currentTL()
+	if tl != nil && tl.kind == treeYak {
+		repo := m.repos[tl.repoIdx]
+		if repo.ShaveState != nil && repo.ShaveState.Phase != "" && repo.ShaveState.Phase != "done" && repo.ShaveState.Phase != "failed" && repo.ShaveState.Phase != "cancelled" {
+			return temporal.ShaveWorkflowID(repo.ShaveState.YakName)
+		}
+	}
+	if tl != nil && tl.kind == treeYak {
+		return m.repos[tl.repoIdx].WFID
+	}
+	if tl != nil && tl.kind == treeRepo {
+		return m.repos[tl.repoIdx].WFID
+	}
+	return ""
+}
+
+func (m *Model) showWorkflowHistory() (tea.Model, tea.Cmd) {
+	wfID := m.historyTargetWFID()
+	m.showHistory = true
+	m.historyWfID = wfID
+	m.historyLines = []string{"Loading…"}
+	return m, m.fetchHistory(wfID)
+}
+
+func (m *Model) fetchHistory(_ string) tea.Cmd {
+	// Stub: in production this would call Temporal API.
+	// Returns a no-op command for now; real implementation wired in separately.
+	return func() tea.Msg { return nil }
+}
+
+func (m *Model) handleHistoryKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "q":
+		m.showHistory = false
+		return m, nil
+	case "t":
+		m.historyTimelineReverse = !m.historyTimelineReverse
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m *Model) renderHistoryView() string {
+	statusStr := ""
+	if m.historyStatus != "" {
+		statusStr = " [" + m.historyStatus + "]"
+	}
+	header := lipgloss.NewStyle().
+		Width(m.width).
+		Background(lipgloss.Color("#2A2A2A")).
+		PaddingLeft(1).
+		Render(fmt.Sprintf("Workflow History: %s%s", m.historyWfID, statusStr))
+
+	contentLines := m.historyLines
+
+	// Render timeline spans if present
+	var spanLines []string
+	if len(m.historySpans) > 0 {
+		// compute total duration for proportional bars
+		var total time.Duration
+		for _, s := range m.historySpans {
+			end := s.offset + s.duration
+			if end > total {
+				total = end
+			}
+		}
+		if total == 0 {
+			total = time.Second
+		}
+		spanLines = append(spanLines, "")
+		spanLines = append(spanLines, pinkBoldStyle.Render("Activity Timeline:"))
+		barWidth := m.width - 4
+		if barWidth < 20 {
+			barWidth = 20
+		}
+		for _, s := range m.historySpans {
+			spanLines = append(spanLines, "  "+formatSpanBar(s, barWidth, total))
+		}
+	}
+
+	var allLines []string
+	if m.historyTimelineReverse {
+		rev := make([]string, len(contentLines))
+		copy(rev, contentLines)
+		for i, j := 0, len(rev)-1; i < j; i, j = i+1, j-1 {
+			rev[i], rev[j] = rev[j], rev[i]
+		}
+		allLines = append(allLines, rev...)
+	} else {
+		allLines = append(allLines, contentLines...)
+	}
+	allLines = append(allLines, spanLines...)
+
+	bodyHeight := m.height - FooterHeight - HeaderHeight
+	if bodyHeight < 1 {
+		bodyHeight = 1
+	}
+	for len(allLines) < bodyHeight {
+		allLines = append(allLines, "")
+	}
+	if len(allLines) > bodyHeight {
+		allLines = allLines[:bodyHeight]
+	}
+
+	body := strings.Join(allLines, "\n")
+
+	footer := dimStyle.Render("esc:close  t:toggle order")
+	footer = lipgloss.NewStyle().Width(m.width).Background(lipgloss.Color("#2A2A2A")).Render(footer)
+
+	return lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
 }
 
 func centerText(w, h int, text string) string {

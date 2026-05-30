@@ -1,5 +1,34 @@
 package temporal
 
+import "go.temporal.io/api/enums/v1"
+
+// LLMConfig holds the configuration for the LLM-backed coding agent.
+type LLMConfig struct {
+	BaseURL string `json:"baseUrl,omitempty"`
+	Model   string `json:"model,omitempty"`
+	APIKey  string `json:"apiKey,omitempty"`
+}
+
+// WorkflowState holds the current observable state of a running workflow.
+type WorkflowState struct {
+	WorkflowID string                        `json:"workflowId"`
+	Status     enums.WorkflowExecutionStatus `json:"status"`
+}
+
+// ShaveState tracks progress of a ShaveWorkflow.
+type ShaveState struct {
+	YakName    string `json:"yakName"`
+	Phase      string `json:"phase"`
+	Iteration  int    `json:"iteration"`
+	MaxRetries int    `json:"maxRetries"`
+	Workspace  string `json:"workspace"`
+}
+
+// ShaveWorkflowID returns the deterministic Temporal workflow ID for a shave run.
+func ShaveWorkflowID(yakName string) string {
+	return "yyx-shave-" + sanitizeWorkflowID(yakName)
+}
+
 // WorkflowConfig is passed to YakWorkflow at start time.
 type WorkflowConfig struct {
 	RepoURL string   `json:"repoUrl"` // e.g. "https://github.com/funkymonkeymonk/yaketyyak"

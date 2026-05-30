@@ -1,5 +1,7 @@
 package tui
 
+import "github.com/funkymonkeymonk/yaketyyak/temporal"
+
 type YakState string
 
 const (
@@ -22,12 +24,13 @@ type YakLine struct {
 }
 
 type Repo struct {
-	Name    string
-	Root    string
-	Remote  string
-	Yaks    []YakLine
-	YaksDir string
-	WFID    string
+	Name       string
+	Root       string
+	Remote     string
+	Yaks       []YakLine
+	YaksDir    string
+	WFID       string
+	ShaveState *temporal.ShaveState
 }
 
 type treeLineType int
