@@ -88,3 +88,15 @@ styling — must follow the authoritative reference at
 - Temporal workflows in `temporal/`
 - CLI commands in `cmd/` using Cobra
 - Tests: none yet (`go test ./...` should pass)
+
+## KDL files
+
+Zellij layouts and other config use the KDL format. The dev environment provides
+`kdlfmt` for formatting and validation:
+
+```
+kdlfmt check devenv/zellij/layout.kdl    # validate (exit code 0 if OK)
+kdlfmt format devenv/zellij/layout.kdl   # auto-format in-place
+```
+
+Run `kdlfmt check` on any edited `.kdl` file before presenting the result.
