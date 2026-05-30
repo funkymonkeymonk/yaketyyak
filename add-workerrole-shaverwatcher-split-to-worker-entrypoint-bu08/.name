@@ -1,0 +1,1 @@
+add WORKER_ROLE shaver/watcher split to worker entrypoint
