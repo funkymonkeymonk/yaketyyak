@@ -82,6 +82,40 @@ design decisions — layout, panes, resizing, component structure, key handling,
 styling — must follow the authoritative reference at
 [docs/explanation/tui-design.md](docs/explanation/tui-design.md).
 
+## Session Protocol
+
+Every work session — human or agent — follows this two-phase ritual.
+
+### Triage (session start, ~5 min)
+
+1. `yx sync` — pull latest state from remote
+2. `yx ls` — survey the full map
+3. Set a hard stop time before starting (e.g. "done by 17:00")
+4. Pick **at most 2 yaks** to work on; note them explicitly before touching any code
+5. Check for `@needs-human` yaks and surface them to the human before diving in:
+   ```
+   yx ls | grep @needs-human
+   ```
+
+**WIP limit: 2 yaks maximum per session.** More than two means context-switching
+overhead exceeds value delivered. If a yak blocks, note it and move to the other
+one — do not open a third.
+
+### Wrap (session end)
+
+1. `yx sync` — push all state changes made during the session
+2. Update context on any in-progress yak with a progress note:
+   ```
+   echo "Did X, Y. Blocked on Z." | yx context "<yak name>"
+   ```
+3. Leave a one-line handoff note in every wip yak's context for the next session
+4. Prune noise if the map is cluttered:
+   ```
+   yx ls --all   # identify done/stale yaks
+   yx prune      # remove them
+   ```
+5. `yx sync` — final push so the next session (human or agent) starts clean
+
 ## Code conventions
 
 - Go 1.26+
