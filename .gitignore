@@ -6,6 +6,6 @@ dist/
 .devenv/
 .workspaces/
 .env.op
-.devenv/
 /yaketyyak
 .yak-context.md
+.temporal.db

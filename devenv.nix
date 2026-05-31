@@ -32,13 +32,14 @@ in
     tempo
     tree-sitter-grammars.tree-sitter-kdl
     kdlfmt
+    nodejs
   ];
 
   processes = {
-    temporal-dev-server.exec = "temporal server start-dev";
+    temporal-dev-server.exec = "temporal server start-dev --db-filename ${projectRoot}/.temporal.db";
 
     worker = {
-      exec = "${projectRoot}/yyx worker";
+      exec = "npm --prefix ${projectRoot}/worker install --silent && npm --prefix ${projectRoot}/worker run build && npm --prefix ${projectRoot}/worker run start";
       process-compose = {
         availability.restart = "always";
         replicas = 1;
