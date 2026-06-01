@@ -5,22 +5,22 @@ Start a durable `YakWorkflow` to shave a single yak autonomously.
 ## Basic usage
 
 ```bash
-yyx shave <yak-name>
+yy shave <yak-name>
 ```
 
 The yak name can be given as space-separated words or hyphenated:
 
 ```bash
-yyx shave update documentation
-yyx shave update-documentation-to-reflect-current-architecture-7yf2
+yy shave update documentation
+yy shave update-documentation-to-reflect-current-architecture-7yf2
 ```
 
-Both forms start the same workflow. The deterministic workflow ID is derived from the yak name (e.g. `yyx-yak-update-documentation`).
+Both forms start the same workflow. The deterministic workflow ID is derived from the yak name (e.g. `yy-yak-update-documentation`).
 
 ## With options
 
 ```bash
-yyx shave <yak-name> \
+yy shave <yak-name> \
     --repo-root /path/to/repo \
     --pi-model anthropic/claude-sonnet-4 \
     --pi-tools read,bash,edit,write \
@@ -40,7 +40,7 @@ yyx shave <yak-name> \
 
 ```
 Started YakWorkflow for "update documentation"
-  Workflow ID: yyx-yak-update-documentation
+  Workflow ID: yy-yak-update-documentation
   Run ID:      <temporal-run-id>
   Repo root:   /path/to/repo
 ```
@@ -53,7 +53,7 @@ Started YakWorkflow for "update documentation"
 | `LITELLM_API_KEY` | Yes | LiteLLM API key |
 | `GITHUB_TOKEN` | Yes | GitHub personal access token with `repo` scope |
 
-These are read by the **worker process**, not by the `yyx shave` command itself.
+These are read by the **worker process**, not by the `yy shave` command itself.
 
 > For the full list of flags, see [Workflow Options](../reference/workflow-options.md).
 > For a walkthrough from scratch, see [From Zero to Yak Shaving](../tutorials/from-zero-to-shaving.md).

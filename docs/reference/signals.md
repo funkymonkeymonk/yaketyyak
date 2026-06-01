@@ -8,7 +8,7 @@ Cancels the workflow and releases the claimed yak. The yak is returned to `todo`
 
 ```bash
 temporal workflow signal \
-    --workflow-id yyx-yak-<yak-name-slug> \
+    --workflow-id yy-yak-<yak-name-slug> \
     --name wont-do
 ```
 

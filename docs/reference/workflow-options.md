@@ -1,6 +1,6 @@
 # Workflow Options Reference
 
-Flags accepted by `yyx shave`.
+Flags accepted by `yy shave`.
 
 ## --repo-root
 
@@ -9,7 +9,7 @@ Type: `string` (optional, default: current directory)
 Absolute or relative path to the local checkout of the repository to work in. The workflow passes this to Pi as the working directory and uses it for jj workspace operations.
 
 ```bash
-yyx shave my-yak --repo-root /path/to/repo
+yy shave my-yak --repo-root /path/to/repo
 ```
 
 ## --pi-model
@@ -19,7 +19,7 @@ Type: `string` (optional, default: `"claude-sonnet-4-6"`)
 LiteLLM model name to pass to Pi. If unset, Pi uses `claude-sonnet-4-6`.
 
 ```bash
-yyx shave my-yak --pi-model claude-haiku-4-5-20251001
+yy shave my-yak --pi-model claude-haiku-4-5-20251001
 ```
 
 ### Known-good models
@@ -50,7 +50,7 @@ Type: `[]string` (optional, default: `read,bash,edit,write`)
 Comma-separated list of Pi tools to enable. The defaults are sufficient for most yaks.
 
 ```bash
-yyx shave my-yak --pi-tools read,bash,edit,write
+yy shave my-yak --pi-tools read,bash,edit,write
 ```
 
 ## --pi-skill
@@ -60,14 +60,14 @@ Type: `[]string` (optional, repeatable)
 Path(s) to Pi skill files to load via `--skill`. Can be specified multiple times.
 
 ```bash
-yyx shave my-yak \
+yy shave my-yak \
     --pi-skill /path/to/skill-a.md \
     --pi-skill /path/to/skill-b.md
 ```
 
 ## Environment variables (worker)
 
-These are read by the **worker process**, not by `yyx shave` itself.
+These are read by the **worker process**, not by `yy shave` itself.
 
 | Variable | Required | Description |
 |----------|----------|-------------|

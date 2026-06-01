@@ -6,7 +6,7 @@ A standalone Temporal workflow that shaves a single yak through the shave loop p
 
 ```
 Workflow name:     ShaveWorkflow
-Workflow ID:       yyx-shave-<yak-name-slug>
+Workflow ID:       yy-shave-<yak-name-slug>
 Task queue:        yaketyyak-tasks
 Registration:      temporal/worker.go
 Query handler:     shave_status
@@ -67,7 +67,7 @@ Query from the CLI:
 
 ```bash
 temporal workflow query \
-    --workflow-id yyx-shave-add-unit-tests \
+    --workflow-id yy-shave-add-unit-tests \
     --type shave_status
 ```
 
@@ -77,7 +77,7 @@ Cancels the workflow at the next iteration boundary. Any in-flight activity cont
 
 ```bash
 temporal workflow signal \
-    --workflow-id yyx-shave-add-unit-tests \
+    --workflow-id yy-shave-add-unit-tests \
     --name shave_cancel
 ```
 

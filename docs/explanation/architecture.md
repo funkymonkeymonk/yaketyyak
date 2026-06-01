@@ -52,7 +52,7 @@ Temporal provides four properties that map directly to the problem of CI-trigger
 
 | Source | Mechanism |
 |--------|----------|
-| CLI invocation | `yyx shave <yak-name>` starts a new `YakWorkflow` |
+| CLI invocation | `yy shave <yak-name>` starts a new `YakWorkflow` |
 | Abandonment | `wont-do` signal cancels a running workflow |
 
 ### Yak lifecycle within the workflow
