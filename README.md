@@ -22,16 +22,16 @@ Yak claimed ──────────────────→ implement 
 git clone https://github.com/funkymonkeymonk/yaketyyak
 cd yaketyyak
 direnv allow                          # activates devenv with Go + Temporal CLI
-devenv tasks run yyx:install          # build the yyx CLI
+devenv tasks run yy:install          # build the yy CLI
 GITHUB_TOKEN=ghp_xxx devenv up        # start Temporal dev server + worker
-yyx shave <yak-name>                  # start a YakWorkflow for the named yak
+yy shave <yak-name>                  # start a YakWorkflow for the named yak
 ```
 
 > For a full step-by-step walkthrough, see the [tutorial](docs/tutorials/from-zero-to-shaving.md).
 
 ## How it works
 
-1. `yyx shave <yak-name>` starts a `YakWorkflow` on the Temporal task queue
+1. `yy shave <yak-name>` starts a `YakWorkflow` on the Temporal task queue
 2. The worker claims the yak, creates an isolated jj workspace, and dispatches Pi via LiteLLM
 3. Pi implements the yak and commits in the workspace
 4. The workflow opens a draft PR and waits for it to be merged

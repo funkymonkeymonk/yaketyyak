@@ -17,6 +17,13 @@ type PiConfig struct {
 	MaxRunTimeSeconds int `json:"maxRunTimeSeconds,omitempty"`
 }
 
+// LLMConfig holds the LLM provider configuration for the TUI.
+type LLMConfig struct {
+	BaseURL string `json:"baseUrl,omitempty"`
+	Model   string `json:"model,omitempty"`
+	APIKey  string `json:"-"`
+}
+
 // DefaultPiTools are the tools enabled for every shave run.
 var DefaultPiTools = []string{"read", "bash", "edit", "write"}
 
@@ -25,7 +32,7 @@ const DefaultPiModel = "claude-sonnet-4-6"
 
 // YakWorkflowID returns the deterministic Temporal workflow ID for a yak.
 func YakWorkflowID(yakName string) string {
-	return "yyx-yak-" + sanitizeWorkflowID(yakName)
+	return "yy-yak-" + sanitizeWorkflowID(yakName)
 }
 
 func sanitizeWorkflowID(name string) string {

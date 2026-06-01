@@ -18,7 +18,7 @@ devenv tasks run <name>
 To run all tasks in a namespace:
 
 ```
-devenv tasks run yyx
+devenv tasks run yy
 devenv tasks run project
 ```
 
@@ -35,7 +35,7 @@ Exposes `search_packages` (nixpkgs) and `search_options` (devenv config).
 
 ## Project architecture
 
-`yyx` — a Cobra CLI that starts/manages Temporal workflows for autonomous
+`yy` — a Cobra CLI that starts/manages Temporal workflows for autonomous
 yak-shaving (CI → yak → PR lifecycle).
 
 ```
@@ -49,7 +49,7 @@ docs/             Diataxis documentation (tutorials, how-to, reference, explanat
 
 ### Key workflow
 
-1. `yyx start` kicks off a Temporal `BarberWorkflow`
+1. `yy start` kicks off a Temporal `BarberWorkflow`
 2. The workflow listens for signals: CI results, g2g tags, PR feedback
 3. On trigger, it dispatches a coding agent (Pi, Claude Code, Codex, OpenCode)
 4. The agent implements changes, opens a PR, and the workflow monitors CI

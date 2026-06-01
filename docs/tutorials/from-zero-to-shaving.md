@@ -40,16 +40,16 @@ go version        # Go from nixpkgs
 temporal --version
 ```
 
-## Step 3: Build the yyx CLI
+## Step 3: Build the yy CLI
 
 ```bash
-devenv tasks run yyx:install
+devenv tasks run yy:install
 ```
 
-This builds the `yyx` binary and installs it locally. Verify:
+This builds the `yy` binary and installs it locally. Verify:
 
 ```bash
-yyx --help
+yy --help
 ```
 
 You should see the `shave` subcommand listed.
@@ -100,7 +100,7 @@ yx sync
 
 ```bash
 cd /path/to/yaketyyak
-yyx shave add-unit-tests-for-the-payment-module \
+yy shave add-unit-tests-for-the-payment-module \
     --repo-root /path/to/your/repo
 ```
 
@@ -108,7 +108,7 @@ Output:
 
 ```
 Started YakWorkflow for "add-unit-tests-for-the-payment-module"
-  Workflow ID: yyx-yak-add-unit-tests-for-the-payment-module
+  Workflow ID: yy-yak-add-unit-tests-for-the-payment-module
   Run ID:      <temporal-run-id>
   Repo root:   /path/to/your/repo
 ```
@@ -126,7 +126,7 @@ Check the workflow status in the Temporal Web UI at `http://localhost:8233`, or 
 
 ```bash
 temporal workflow query \
-    --workflow-id yyx-yak-add-unit-tests-for-the-payment-module \
+    --workflow-id yy-yak-add-unit-tests-for-the-payment-module \
     --type YakWorkflowState
 ```
 
@@ -152,9 +152,9 @@ The yak should show state `done`.
 ## What you learned
 
 - How to set up the yaketyyak dev environment with devenv
-- How to build the `yyx` CLI with `devenv tasks run yyx:install`
+- How to build the `yy` CLI with `devenv tasks run yy:install`
 - How to start all processes (Temporal dev server + worker) with `devenv up`
-- How to create a yak with context and start a `YakWorkflow` with `yyx shave`
+- How to create a yak with context and start a `YakWorkflow` with `yy shave`
 - How to monitor workflow progress via the Temporal Web UI or query
 - How the workflow handles the full cycle from claim to merge
 

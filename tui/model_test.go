@@ -22,7 +22,7 @@ func makeYaks(yaks []YakLine) []Repo {
 		Remote:  "test/repo",
 		Yaks:    yaks,
 		YaksDir: ".yaks",
-		WFID:    "yyx-test",
+		WFID:    "yy-test",
 	}}
 }
 
@@ -124,7 +124,7 @@ func TestLongNamesDontOverflow(t *testing.T) {
 		{Path: "root/whimsy", Name: "Personality and whimsy", State: YakTodo, Depth: 1, IsLastSibling: false, AncestorContinues: []bool{}},
 		{Path: "root/config", Name: "Project-level agent config", State: YakTodo, Depth: 1, IsLastSibling: false, AncestorContinues: []bool{}},
 		{Path: "root/triage", Name: "Session discipline (triage-wrap)", State: YakTodo, Depth: 1, IsLastSibling: true, AncestorContinues: []bool{}},
-		{Path: "tui", Name: "yyx tui", State: YakWip, Depth: 0},
+		{Path: "tui", Name: "yy tui", State: YakWip, Depth: 0},
 		{Path: "tui/model", Name: "bubble tea model", State: YakDone, Depth: 1, IsLastSibling: false, AncestorContinues: []bool{}},
 		{Path: "tui/cmd", Name: "cli subcommand", State: YakDone, Depth: 1, IsLastSibling: false, AncestorContinues: []bool{}},
 		{Path: "tui/render", Name: "tree and detail rendering", State: YakDone, Depth: 1, IsLastSibling: false, AncestorContinues: []bool{}},
@@ -162,7 +162,7 @@ func TestLongNamesDontOverflow(t *testing.T) {
 
 func TestDetailDoesNotOverflow(t *testing.T) {
 	yaks := []YakLine{
-		{Path: "test", Name: "Test Yak", State: YakTodo, Depth: 0, Context: "Cobra subcommand `yyx tui` with flags: --repo owner/repo, --repo-root /path, --agent pi|claude-code|codex|opencode, --yaks-dir .yaks."},
+		{Path: "test", Name: "Test Yak", State: YakTodo, Depth: 0, Context: "Cobra subcommand `yy tui` with flags: --repo owner/repo, --repo-root /path, --agent pi|claude-code|codex|opencode, --yaks-dir .yaks."},
 	}
 	repos := makeYaks(yaks)
 
@@ -192,8 +192,8 @@ func TestTreeLinesCount(t *testing.T) {
 		{Path: "root/b", Name: "Child B", State: YakTodo, Depth: 1, IsLastSibling: true, AncestorContinues: []bool{}},
 	}
 	repos := []Repo{
-		{Name: "repo1", Root: "/a", Remote: "repo1", Yaks: yaks, YaksDir: "/a/.yaks", WFID: "yyx-1"},
-		{Name: "repo2", Root: "/b", Remote: "repo2", Yaks: []YakLine{}, YaksDir: "/b/.yaks", WFID: "yyx-2"},
+		{Name: "repo1", Root: "/a", Remote: "repo1", Yaks: yaks, YaksDir: "/a/.yaks", WFID: "yy-1"},
+		{Name: "repo2", Root: "/b", Remote: "repo2", Yaks: []YakLine{}, YaksDir: "/b/.yaks", WFID: "yy-2"},
 	}
 
 	m := New(repos, temporal.LLMConfig{})
@@ -215,7 +215,7 @@ func TestTreeLinesCount(t *testing.T) {
 }
 
 func TestDetailTruncation(t *testing.T) {
-	longLine := "Cobra subcommand `yyx tui` with flags: --repo owner/repo"
+	longLine := "Cobra subcommand `yy tui` with flags: --repo owner/repo"
 	result := padWidth("  "+dimStyle.Render(longLine), 40)
 	vis := lipgloss.Width(result)
 	if vis < 40 {
@@ -254,8 +254,8 @@ func TestRepoTreeLine(t *testing.T) {
 		{Path: "a", Name: "Yak A", State: YakTodo, Depth: 0},
 	}
 	repos := []Repo{
-		{Name: "owner/repo1", Root: "/a", Remote: "owner/repo1", Yaks: yaks, YaksDir: "/a/.yaks", WFID: "yyx-1"},
-		{Name: "owner/repo2", Root: "/b", Remote: "owner/repo2", Yaks: nil, YaksDir: "/b/.yaks", WFID: "yyx-2"},
+		{Name: "owner/repo1", Root: "/a", Remote: "owner/repo1", Yaks: yaks, YaksDir: "/a/.yaks", WFID: "yy-1"},
+		{Name: "owner/repo2", Root: "/b", Remote: "owner/repo2", Yaks: nil, YaksDir: "/b/.yaks", WFID: "yy-2"},
 	}
 
 	m := New(repos, temporal.LLMConfig{})
@@ -334,7 +334,7 @@ func TestSidebarShowsContent(t *testing.T) {
 
 func TestSidebarEmptyState(t *testing.T) {
 	repos := []Repo{
-		{Name: "empty", Root: "/empty", Remote: "empty", Yaks: nil, YaksDir: "/empty/.yaks", WFID: "yyx-e"},
+		{Name: "empty", Root: "/empty", Remote: "empty", Yaks: nil, YaksDir: "/empty/.yaks", WFID: "yy-e"},
 	}
 
 	m := New(repos, temporal.LLMConfig{})
@@ -741,7 +741,7 @@ func TestHistoryTargetWFID_PrefersShaveOverBarber(t *testing.T) {
 		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
 	}
 	repos := makeYaks(yaks)
-	repos[0].WFID = "yyx-orch-abc123"
+	repos[0].WFID = "yy-orch-abc123"
 	repos[0].ShaveState = &temporal.ShaveState{YakName: "TestYak", Phase: "implementing"}
 
 	m := New(repos, temporal.LLMConfig{})
@@ -761,7 +761,7 @@ func TestHistoryTargetWFID_FallsBackToBarber(t *testing.T) {
 		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
 	}
 	repos := makeYaks(yaks)
-	repos[0].WFID = "yyx-orch-abc123"
+	repos[0].WFID = "yy-orch-abc123"
 
 	m := New(repos, temporal.LLMConfig{})
 	m.buildTree()
@@ -769,8 +769,8 @@ func TestHistoryTargetWFID_FallsBackToBarber(t *testing.T) {
 	m.listView.SetCursor(1)
 
 	wfID := m.historyTargetWFID()
-	if wfID != "yyx-orch-abc123" {
-		t.Errorf("historyTargetWFID without shave = %q, want yyx-orch-abc123", wfID)
+	if wfID != "yy-orch-abc123" {
+		t.Errorf("historyTargetWFID without shave = %q, want yy-orch-abc123", wfID)
 	}
 }
 
@@ -779,7 +779,7 @@ func TestShowWorkflowHistorySetsState(t *testing.T) {
 		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
 	}
 	repos := makeYaks(yaks)
-	repos[0].WFID = "yyx-orch-abc123"
+	repos[0].WFID = "yy-orch-abc123"
 
 	m := New(repos, temporal.LLMConfig{})
 	m.buildTree()
@@ -793,8 +793,8 @@ func TestShowWorkflowHistorySetsState(t *testing.T) {
 	if !m.showHistory {
 		t.Error("showWorkflowHistory should set showHistory = true")
 	}
-	if m.historyWfID != "yyx-orch-abc123" {
-		t.Errorf("historyWfID = %q, want yyx-orch-abc123", m.historyWfID)
+	if m.historyWfID != "yy-orch-abc123" {
+		t.Errorf("historyWfID = %q, want yy-orch-abc123", m.historyWfID)
 	}
 	if cmd == nil {
 		t.Error("showWorkflowHistory should return a fetch command")
@@ -809,7 +809,7 @@ func TestHistoryViewRenders(t *testing.T) {
 		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
 	}
 	repos := makeYaks(yaks)
-	repos[0].WFID = "yyx-orch-abc123"
+	repos[0].WFID = "yy-orch-abc123"
 
 	m := New(repos, temporal.LLMConfig{})
 	m.buildTree()
@@ -819,7 +819,7 @@ func TestHistoryViewRenders(t *testing.T) {
 	m.syncProgramContext()
 
 	m.showHistory = true
-	m.historyWfID = "yyx-orch-abc123"
+	m.historyWfID = "yy-orch-abc123"
 	m.historyLines = []string{
 		"   1  12:00:00  WorkflowExecutionStarted",
 		"   2  12:00:01  ActivityTaskScheduled",
@@ -830,7 +830,7 @@ func TestHistoryViewRenders(t *testing.T) {
 	if !strings.Contains(view, "Workflow History") {
 		t.Error("History view should show title")
 	}
-	if !strings.Contains(view, "yyx-orch-abc123") {
+	if !strings.Contains(view, "yy-orch-abc123") {
 		t.Error("History view should show workflow ID")
 	}
 	if !strings.Contains(view, "WorkflowExecutionStarted") {
@@ -845,7 +845,7 @@ func TestHistoryViewDismisses(t *testing.T) {
 	repos := makeYaks(yaks)
 	m := New(repos, temporal.LLMConfig{})
 	m.showHistory = true
-	m.historyWfID = "yyx-orch-abc123"
+	m.historyWfID = "yy-orch-abc123"
 	m.historyLines = []string{"event 1"}
 
 	m.Update(tea.KeyMsg{Type: tea.KeyEscape})
@@ -860,7 +860,7 @@ func TestHistoryViewShowsStatus(t *testing.T) {
 		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
 	}
 	repos := makeYaks(yaks)
-	repos[0].WFID = "yyx-orch-abc123"
+	repos[0].WFID = "yy-orch-abc123"
 
 	m := New(repos, temporal.LLMConfig{})
 	m.buildTree()
@@ -870,7 +870,7 @@ func TestHistoryViewShowsStatus(t *testing.T) {
 	m.syncProgramContext()
 
 	m.showHistory = true
-	m.historyWfID = "yyx-orch-abc123"
+	m.historyWfID = "yy-orch-abc123"
 	m.historyStatus = "FAILED"
 	m.historyLines = []string{"   1  12:00:00  WorkflowExecutionStarted"}
 
@@ -891,7 +891,7 @@ func TestPollTickRefreshesHistoryWhenShowing(t *testing.T) {
 	m.syncProgramContext()
 
 	m.showHistory = true
-	m.historyWfID = "yyx-orch-abc123"
+	m.historyWfID = "yy-orch-abc123"
 	m.historyLines = []string{"event"}
 
 	_, cmd := m.Update(pollTickMsg{})
@@ -984,7 +984,7 @@ func TestHistoryTogglesSort(t *testing.T) {
 		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
 	}
 	repos := makeYaks(yaks)
-	repos[0].WFID = "yyx-orch-abc123"
+	repos[0].WFID = "yy-orch-abc123"
 
 	m := New(repos, temporal.LLMConfig{})
 	m.buildTree()
@@ -995,7 +995,7 @@ func TestHistoryTogglesSort(t *testing.T) {
 
 	m.showHistory = true
 	m.historyTimelineReverse = false
-	m.historyWfID = "yyx-orch-abc123"
+	m.historyWfID = "yy-orch-abc123"
 	m.historyStatus = "FAILED"
 	m.historyLines = []string{"event1", "event2"}
 
@@ -1014,7 +1014,7 @@ func TestTimelineViewRenders(t *testing.T) {
 		{Path: "test", Name: "TestYak", State: YakWip, Depth: 0},
 	}
 	repos := makeYaks(yaks)
-	repos[0].WFID = "yyx-orch-abc123"
+	repos[0].WFID = "yy-orch-abc123"
 
 	m := New(repos, temporal.LLMConfig{})
 	m.buildTree()
@@ -1025,7 +1025,7 @@ func TestTimelineViewRenders(t *testing.T) {
 
 	m.showHistory = true
 	m.historyTimelineReverse = false
-	m.historyWfID = "yyx-orch-abc123"
+	m.historyWfID = "yy-orch-abc123"
 	m.historyStatus = "FAILED"
 	m.historySpans = []activitySpan{
 		{name: "YxSync", offset: 0, duration: 1200 * time.Millisecond, status: "completed"},

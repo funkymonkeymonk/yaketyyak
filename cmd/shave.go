@@ -22,8 +22,8 @@ it, opens a draft PR, then waits for a human to review, approve, and merge.
 Requires LITELLM_BASE_URL, LITELLM_API_KEY, and GITHUB_TOKEN in the worker
 environment (injected via op run from .env.op).
 
-  yyx shave update documentation --repo-url https://github.com/you/repo
-  yyx shave update-documentation-to-reflect-current-architecture-7yf2 --repo-url https://github.com/funkymonkeymonk/yaketyyak`,
+  yy shave update documentation --repo-url https://github.com/you/repo
+  yy shave update-documentation-to-reflect-current-architecture-7yf2 --repo-url https://github.com/funkymonkeymonk/yaketyyak`,
 	Args: cobra.MinimumNArgs(1),
 	Run:  runShave,
 }

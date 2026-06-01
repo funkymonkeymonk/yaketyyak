@@ -20,18 +20,18 @@ Working on a project → devenv.nix exists? → `devenv tasks list` → use task
 
 ```bash
 # Before: raw toolchain (bad)
-go build -o yyx . && go test ./... && go vet ./...
+go build -o yy . && go test ./... && go vet ./...
 
 # After: devenv tasks (correct)
 devenv tasks list                    # discover tasks
-devenv tasks run yyx:build           # chains lint → test → build
+devenv tasks run yy:build           # chains lint → test → build
 ```
 
 Never hardcode task names — `devenv tasks list` shows the dependency tree dynamically. Tasks use `namespace:name` format; running a namespace runs all tasks within it.
 
 ## Dependency Awareness
 
-Tasks declare `after` dependencies — `devenv tasks run yyx:build` automatically runs its listed `after` tasks (lint, test, etc.) first. Pick the highest-level task that covers what you need.
+Tasks declare `after` dependencies — `devenv tasks run yy:build` automatically runs its listed `after` tasks (lint, test, etc.) first. Pick the highest-level task that covers what you need.
 
 ## Common Mistakes & Red Flags
 

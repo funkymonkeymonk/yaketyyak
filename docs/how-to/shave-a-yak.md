@@ -19,13 +19,13 @@ Shaving yak: Add unit tests for payment module...
 ## From the CLI
 
 ```bash
-yyx
+yy
 ```
 
-The TUI scans the current directory for repos with `.yaks/` directories. Press `v` on the target yak. The workflow ID is `yyx-shave-<yak-name-slug>` — check its status:
+The TUI scans the current directory for repos with `.yaks/` directories. Press `v` on the target yak. The workflow ID is `yy-shave-<yak-name-slug>` — check its status:
 
 ```bash
-yyx status --workflow-id yyx-shave-add-unit-tests-for-payment-module
+yy status --workflow-id yy-shave-add-unit-tests-for-payment-module
 ```
 
 ## What happens

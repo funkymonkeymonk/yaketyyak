@@ -4,7 +4,7 @@ A Temporal workflow that shaves a single yak autonomously: claim → implement �
 
 ```
 Workflow name:  YakWorkflow
-Workflow ID:    yyx-yak-<yak-name-slug>
+Workflow ID:    yy-yak-<yak-name-slug>
 Task queue:     yaketyyak-tasks
 ```
 
@@ -16,7 +16,7 @@ Task queue:     yaketyyak-tasks
 | `repoRoot` | string | yes | — | Absolute path to local checkout |
 | `cfg` | PiConfig | yes | — | Pi agent configuration (model, tools, skills) |
 
-`repoRoot` defaults to the current directory when `yyx shave` is invoked without `--repo-root`.
+`repoRoot` defaults to the current directory when `yy shave` is invoked without `--repo-root`.
 
 See [PiConfig](data-types.md#piconfig) for agent configuration details.
 
@@ -67,7 +67,7 @@ Query via Temporal CLI:
 
 ```bash
 temporal workflow query \
-    --workflow-id yyx-yak-update-documentation \
+    --workflow-id yy-yak-update-documentation \
     --type YakWorkflowState
 ```
 
@@ -77,7 +77,7 @@ Cancels the workflow at the next activity boundary. The yak is released (returne
 
 ```bash
 temporal workflow signal \
-    --workflow-id yyx-yak-update-documentation \
+    --workflow-id yy-yak-update-documentation \
     --name wont-do
 ```
 

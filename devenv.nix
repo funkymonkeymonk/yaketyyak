@@ -48,14 +48,14 @@ in
     };
   };
 
-  scripts.yyx.exec = "${projectRoot}/yyx";
+  scripts.yy.exec = "${projectRoot}/yy";
 
   scripts.dev-run.exec = ''
     set -e
     echo "Building..."
-    go build -o yyx .
+    go build -o yy .
     echo "Launching TUI..."
-    exec ./yyx
+    exec ./yy
   '';
 
   scripts.dev-session.exec = ''
@@ -63,51 +63,49 @@ in
   '';
 
   tasks = {
-    "yyx:build" = {
-      description = "Build the yyx binary (fast, no lint/test)";
+    "yy:build" = {
+      description = "Build the yy binary (fast, no lint/test)";
       exec = ''
-        go build -o yyx .
+        go build -o yy .
       '';
     };
 
-
-
-    "yyx:test" = {
+    "yy:test" = {
       description = "Run all tests";
       exec = ''
-        go test ./...
+        go test ./cmd/... ./temporal/...
       '';
     };
 
-    "yyx:lint" = {
+    "yy:lint" = {
       description = "Run go vet";
       exec = ''
-        go vet ./...
+        go vet ./cmd/... ./temporal/...
       '';
     };
 
-    "yyx:check" = {
+    "yy:check" = {
       description = "Run lint and tests";
-      after = [ "yyx:lint" "yyx:test" ];
+      after = [ "yy:lint" "yy:test" ];
       exec = ''
         echo "All checks passed."
       '';
     };
 
-    "yyx:install" = {
+    "yy:install" = {
       description = "Full pipeline: lint, test, build, install";
-      after = [ "yyx:check" "yyx:build" ];
+      after = [ "yy:check" "yy:build" ];
       exec = ''
         install -d "$GOPATH/bin"
-        install -m 755 yyx "$GOPATH/bin/yyx"
-        echo "Installed yyx to $GOPATH/bin/yyx"
+        install -m 755 yy "$GOPATH/bin/yy"
+        echo "Installed yy to $GOPATH/bin/yy"
       '';
     };
 
     "utils:clean" = {
       description = "Remove build artifacts";
       exec = ''
-        rm -f yyx
+        rm -f yy
         go clean
       '';
     };
@@ -116,15 +114,15 @@ in
   enterShell = ''
     echo "✦ yaketyyak dev environment"
     echo "  Go: $(go version 2>/dev/null || echo 'not found')"
-    echo "  yyx: $(which yyx 2>/dev/null || echo 'run \`devenv tasks run project:setup\` first')"
+    echo "  yy: $(which yy 2>/dev/null || echo 'run \`devenv tasks run project:setup\` first')"
     echo ""
     echo "  Available tasks:"
     echo "    devenv tasks list                          # discover all tasks"
     echo "    dev-run                                    # build and run TUI (fast)"
-    echo "    devenv tasks run yyx:build                 # build only"
-    echo "    devenv tasks run yyx:install               # full pipeline (lint+test+build+install)"
-    echo "    devenv tasks run yyx:test                  # run tests"
-    echo "    devenv tasks run yyx:lint                  # go vet"
+    echo "    devenv tasks run yy:build                 # build only"
+    echo "    devenv tasks run yy:install               # full pipeline (lint+test+build+install)"
+    echo "    devenv tasks run yy:test                  # run tests"
+    echo "    devenv tasks run yy:lint                  # go vet"
     echo "    devenv tasks run utils:clean               # clean artifacts"
     echo ""
     echo "  Dev server:"
@@ -133,7 +131,7 @@ in
     echo "    zellij --layout ${projectRoot}/devenv/zellij/layout.kdl  Direct zellij layout"
     echo ""
     echo "  Workflow:"
-    echo "    yyx start --repo user/repo --repo-root /path          Start a workflow"
+    echo "    yy start --repo user/repo --repo-root /path          Start a workflow"
     echo ""
     echo "  MCP server (for AI assistants):"
     echo "    devenv mcp                            stdio mode"

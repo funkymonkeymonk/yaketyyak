@@ -2,7 +2,7 @@
 
 # Barber and Shave Workflows
 
-The `BarberWorkflow` and `ShaveWorkflow` described here do not exist in the current codebase. The only implemented workflow is `YakWorkflow` — a single-yak workflow invoked with `yyx shave`.
+The `BarberWorkflow` and `ShaveWorkflow` described here do not exist in the current codebase. The only implemented workflow is `YakWorkflow` — a single-yak workflow invoked with `yy shave`.
 
 This document describes the planned design for a future continuous barber that monitors CI, processes `@g2g` yaks, and runs adversarial review before opening PRs.
 

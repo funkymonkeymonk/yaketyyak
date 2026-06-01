@@ -34,7 +34,7 @@ func ScanRepos(cwd string) ([]Repo, error) {
 			remote := detectRemote(path)
 			yaks, _ := LoadYaks(yaksDir)
 			h := sha1.Sum([]byte(path))
-			wfID := "yyx-orch-" + hex.EncodeToString(h[:4])
+			wfID := "yy-orch-" + hex.EncodeToString(h[:4])
 
 			repos = append(repos, Repo{
 				Name:    remoteName(path, remote),

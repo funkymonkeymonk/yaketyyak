@@ -12,6 +12,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
+
+	"github.com/funkymonkeymonk/yaketyyak/temporal"
 )
 
 type signalMsg struct {
@@ -46,6 +48,8 @@ type Model struct {
 	sidePanel  sidebarModel
 	statusBar  footerModel
 
+	llmConfig temporal.LLMConfig
+
 	showConfirm   bool
 	confirmMsg    string
 	confirmAction string
@@ -59,7 +63,7 @@ func init() {
 	zone.NewGlobal()
 }
 
-func New(repos []Repo) Model {
+func New(repos []Repo, llmConfig temporal.LLMConfig) Model {
 	m := Model{
 		repos:      repos,
 		prLines:    collectPRs(repos),
@@ -72,6 +76,7 @@ func New(repos []Repo) Model {
 		prActivity: newPRActivity(),
 		sidePanel:  newSidebar(),
 		statusBar:  newFooter(),
+		llmConfig:  llmConfig,
 	}
 	m.prActivity.SetItems(m.prLines)
 	return m
