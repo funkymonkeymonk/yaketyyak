@@ -38,24 +38,46 @@ in
   processes = {
     temporal-dev-server.exec = "temporal server start-dev --db-filename ${projectRoot}/.temporal.db";
 
+    temporal-setup = {
+      exec = ''
+        # Wait for Temporal to be ready, then register custom search attributes.
+        until temporal operator namespace describe default >/dev/null 2>&1; do
+          sleep 1
+        done
+        temporal operator search-attribute create \
+          --name YakName --type Text \
+          --name Phase   --type Keyword \
+          --name PrUrl   --type Keyword \
+          --namespace default \
+          2>/dev/null || true
+        echo "Temporal search attributes ready"
+      '';
+      process-compose = {
+        availability.restart = "no";
+        depends_on."temporal-dev-server".condition = "process_started";
+      };
+    };
+
     worker = {
       exec = "npm --prefix ${projectRoot}/worker install --silent && npm --prefix ${projectRoot}/worker run build && npm --prefix ${projectRoot}/worker run start";
       process-compose = {
-        availability.restart = "always";
+        availability.restart = "on_failure";
+        availability.max_restarts = 3;
         replicas = 1;
-        depends_on."temporal-dev-server".condition = "process_started";
+        depends_on."temporal-setup".condition = "process_completed_successfully";
       };
     };
   };
 
-  scripts.yy.exec = "${projectRoot}/yy";
+  scripts.yy.exec = "${projectRoot}/dist/yy";
 
   scripts.dev-run.exec = ''
     set -e
     echo "Building..."
-    go build -o yy .
+    mkdir -p dist
+    go build -o dist/yy .
     echo "Launching TUI..."
-    exec ./yy
+    exec ./dist/yy
   '';
 
   scripts.dev-session.exec = ''
@@ -66,7 +88,8 @@ in
     "yy:build" = {
       description = "Build the yy binary (fast, no lint/test)";
       exec = ''
-        go build -o yy .
+        mkdir -p dist
+        go build -o dist/yy .
       '';
     };
 
@@ -97,7 +120,7 @@ in
       after = [ "yy:check" "yy:build" ];
       exec = ''
         install -d "$GOPATH/bin"
-        install -m 755 yy "$GOPATH/bin/yy"
+        install -m 755 dist/yy "$GOPATH/bin/yy"
         echo "Installed yy to $GOPATH/bin/yy"
       '';
     };
@@ -105,7 +128,7 @@ in
     "utils:clean" = {
       description = "Remove build artifacts";
       exec = ''
-        rm -f yy
+        rm -rf dist
         go clean
       '';
     };

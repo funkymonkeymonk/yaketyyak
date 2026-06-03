@@ -7,6 +7,5 @@ dist/
 .workspaces/
 .env.op
 /yaketyyak
-/yy
 .yak-context.md
 .temporal.db
