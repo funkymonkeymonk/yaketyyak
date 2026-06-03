@@ -1,7 +1,8 @@
 node_modules/
 dist/
-.yaks
-.yaks/
+.yaks/**
+!.yaks/templates/
+!.yaks/templates/**
 *.log
 .devenv/
 .workspaces/
